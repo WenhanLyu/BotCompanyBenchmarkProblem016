@@ -9,6 +9,7 @@ FileManager::FileManager(const std::string& fname) : filename(fname) {
 
 FileManager::~FileManager() {
     close();
+    clearCache();
 }
 
 void FileManager::open() {
@@ -38,6 +39,7 @@ void FileManager::open() {
 
 void FileManager::close() {
     if (file.is_open()) {
+        flush();  // Flush all cached changes
         writeHeader();  // Save header before closing
         file.close();
     }
@@ -106,6 +108,30 @@ Node* FileManager::readNode(int page_id) {
         return nullptr;
     }
     
+    // Check if node is in cache
+    auto it = cache_map.find(page_id);
+    if (it != cache_map.end()) {
+        // Cache hit - move to front (most recently used) and return direct pointer
+        auto list_it = it->second;
+        cache_list.splice(cache_list.begin(), cache_list, list_it);
+        return list_it->node;
+    }
+    
+    // Cache miss - read from disk
+    Node* node = readNodeFromDisk(page_id);
+    
+    // Add to cache (FileManager owns this node)
+    if (cache_list.size() >= MAX_CACHE_SIZE) {
+        evictLRU();
+    }
+    
+    cache_list.emplace_front(page_id, node, false);
+    cache_map[page_id] = cache_list.begin();
+    
+    return node;
+}
+
+Node* FileManager::readNodeFromDisk(int page_id) {
     // Calculate file offset (header size + page_id * PAGE_SIZE)
     // Header size: 4 ints + max free pages list
     int header_size = PAGE_SIZE;  // Reserve first page for header
@@ -140,6 +166,24 @@ void FileManager::writeNode(Node* node) {
         node->page_id = allocatePage();
     }
     
+    // Check if node is in cache
+    auto it = cache_map.find(node->page_id);
+    if (it != cache_map.end()) {
+        // Node is already in cache - just mark it as dirty
+        it->second->is_dirty = true;
+        // Move to front (most recently used)
+        cache_list.splice(cache_list.begin(), cache_list, it->second);
+    } else {
+        // Node not in cache - add it to cache and mark as dirty
+        if (cache_list.size() >= MAX_CACHE_SIZE) {
+            evictLRU();
+        }
+        cache_list.emplace_front(node->page_id, node, true);
+        cache_map[node->page_id] = cache_list.begin();
+    }
+}
+
+void FileManager::writeNodeToDisk(Node* node) {
     // Serialize node to buffer
     char buffer[PAGE_SIZE];
     memset(buffer, 0, PAGE_SIZE);  // Clear buffer
@@ -163,7 +207,59 @@ void FileManager::setRootPageId(int page_id) {
     writeHeader();
 }
 
+void FileManager::evictLRU() {
+    if (cache_list.empty()) {
+        return;
+    }
+    
+    // Get least recently used entry (at the back)
+    auto& lru_entry = cache_list.back();
+    
+    // If dirty, write to disk before evicting
+    if (lru_entry.is_dirty) {
+        writeNodeToDisk(lru_entry.node);
+    }
+    
+    // Remove from map
+    cache_map.erase(lru_entry.page_id);
+    
+    // Delete the cached node (we own it)
+    delete lru_entry.node;
+    
+    // Remove from cache list
+    cache_list.pop_back();
+}
+
+void FileManager::markDirty(int page_id) {
+    auto it = cache_map.find(page_id);
+    if (it != cache_map.end()) {
+        it->second->is_dirty = true;
+    }
+}
+
 void FileManager::flush() {
+    // Write all dirty nodes to disk
+    for (auto& entry : cache_list) {
+        if (entry.is_dirty) {
+            writeNodeToDisk(entry.node);
+            entry.is_dirty = false;
+        }
+    }
+    
     writeHeader();
     file.flush();
+}
+
+void FileManager::clearCache() {
+    // Flush dirty nodes first and delete all cached nodes
+    for (auto& entry : cache_list) {
+        if (entry.is_dirty) {
+            writeNodeToDisk(entry.node);
+        }
+        delete entry.node;  // Delete the cached copy
+    }
+    
+    // Clear the cache structures
+    cache_list.clear();
+    cache_map.clear();
 }

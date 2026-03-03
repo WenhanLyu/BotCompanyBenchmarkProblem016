@@ -5,6 +5,9 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <list>
+#include <unordered_map>
+#include <memory>
 
 // FileManager handles all disk I/O operations for the B+ tree
 class FileManager {
@@ -27,11 +30,41 @@ private:
     
     FileHeader header;
     
+    // LRU Cache structures
+    struct CacheEntry {
+        int page_id;
+        Node* node;
+        bool is_dirty;  // Track if node has been modified
+        
+        CacheEntry(int pid, Node* n, bool dirty = false) 
+            : page_id(pid), node(n), is_dirty(dirty) {}
+    };
+    
+    // LRU cache: list for ordering (MRU at front, LRU at back)
+    std::list<CacheEntry> cache_list;
+    
+    // Map from page_id to iterator in cache_list for O(1) access
+    std::unordered_map<int, std::list<CacheEntry>::iterator> cache_map;
+    
+    static constexpr size_t MAX_CACHE_SIZE = 800;  // Cache up to 800 nodes (~3.2 MB)
+    
     // Read header from file
     void readHeader();
     
     // Write header to file
     void writeHeader();
+    
+    // Internal method to read node from disk (bypasses cache)
+    Node* readNodeFromDisk(int page_id);
+    
+    // Internal method to write node to disk (bypasses cache)
+    void writeNodeToDisk(Node* node);
+    
+    // Evict least recently used node from cache
+    void evictLRU();
+    
+    // Mark a cached node as dirty
+    void markDirty(int page_id);
     
 public:
     FileManager(const std::string& filename);
@@ -61,8 +94,11 @@ public:
     // Set the root page ID
     void setRootPageId(int page_id);
     
-    // Flush all changes to disk
+    // Flush all changes to disk (writes all dirty cached nodes)
     void flush();
+    
+    // Clear the cache (writes dirty nodes first)
+    void clearCache();
 };
 
 #endif // FILE_MANAGER_H

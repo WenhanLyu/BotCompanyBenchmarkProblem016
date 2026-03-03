@@ -327,3 +327,23 @@ LeafNode* LeafNode::split() {
     
     return new_node;
 }
+
+// ============================================================================
+// Clone Methods (for cache support)
+// ============================================================================
+
+Node* InternalNode::clone() const {
+    InternalNode* copy = new InternalNode();
+    copy->page_id = this->page_id;
+    copy->keys = this->keys;
+    copy->children = this->children;
+    return copy;
+}
+
+Node* LeafNode::clone() const {
+    LeafNode* copy = new LeafNode();
+    copy->page_id = this->page_id;
+    copy->next_leaf = this->next_leaf;
+    copy->entries = this->entries;
+    return copy;
+}

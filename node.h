@@ -46,6 +46,7 @@ public:
     
     virtual int serialize(char* buffer) const = 0;
     virtual int deserialize(const char* buffer) = 0;
+    virtual Node* clone() const = 0;  // Create a deep copy of the node
 };
 
 // InternalNode: stores keys and child page IDs
@@ -70,6 +71,9 @@ public:
     
     // Check if node needs to be split
     bool needsSplit() const;
+    
+    // Create a deep copy of this node
+    Node* clone() const override;
 };
 
 // LeafNode: stores actual data entries
@@ -103,6 +107,9 @@ public:
     
     // Split this leaf node, returns new right node
     LeafNode* split();
+    
+    // Create a deep copy of this node
+    Node* clone() const override;
 };
 
 #endif // NODE_H

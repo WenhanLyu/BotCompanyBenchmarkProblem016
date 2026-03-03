@@ -36,7 +36,7 @@ void BPlusTree::insert(const std::string& key, int value) {
         root->insertEntry(key, value);
         file_manager->writeNode(root);
         file_manager->setRootPageId(root->page_id);
-        delete root;
+        // Don't delete root - FileManager owns it now
         return;
     }
     
@@ -52,7 +52,7 @@ void BPlusTree::insert(const std::string& key, int value) {
         
         file_manager->writeNode(new_root);
         file_manager->setRootPageId(new_root->page_id);
-        delete new_root;
+        // Don't delete new_root - FileManager owns it now
     }
 }
 
@@ -75,12 +75,12 @@ std::vector<int> BPlusTree::find(const std::string& key) {
     LeafNode* leaf = dynamic_cast<LeafNode*>(node);
     
     if (!leaf) {
-        delete node;
+        // Don't delete node - FileManager owns it
         return std::vector<int>();
     }
     
     std::vector<int> values = leaf->getValues(key);
-    delete leaf;
+    // Don't delete leaf - FileManager owns it
     
     return values;
 }
@@ -104,7 +104,7 @@ bool BPlusTree::remove(const std::string& key, int value) {
     LeafNode* leaf = dynamic_cast<LeafNode*>(node);
     
     if (!leaf) {
-        delete node;
+        // Don't delete node - FileManager owns it
         return false;
     }
     
@@ -116,7 +116,7 @@ bool BPlusTree::remove(const std::string& key, int value) {
         file_manager->writeNode(leaf);
     }
     
-    delete leaf;
+    // Don't delete leaf - FileManager owns it
     return removed;
 }
 
@@ -140,20 +140,20 @@ int BPlusTree::findLeaf(const std::string& key) {
         
         if (node->is_leaf) {
             int leaf_page_id = node->page_id;
-            delete node;
+            // Don't delete node - FileManager owns it
             return leaf_page_id;
         }
         
         // Internal node - find the appropriate child
         InternalNode* internal = dynamic_cast<InternalNode*>(node);
         if (!internal) {
-            delete node;
+            // Don't delete node - FileManager owns it
             return -1;
         }
         
         int child_index = internal->findChildIndex(key);
         current_page_id = internal->children[child_index];
-        delete internal;
+        // Don't delete internal - FileManager owns it
     }
 }
 
@@ -169,12 +169,12 @@ BPlusTree::SplitResult BPlusTree::insertInternal(int page_id, const std::string&
         if (leaf->needsSplit()) {
             SplitResult result = splitLeafNode(leaf);
             file_manager->writeNode(leaf);  // Write updated left node
-            delete leaf;
+            // Don't delete leaf - FileManager owns it
             return result;
         } else {
             // No split needed, just write back
             file_manager->writeNode(leaf);
-            delete leaf;
+            // Don't delete leaf - FileManager owns it
             return SplitResult();
         }
     } else {
@@ -194,17 +194,17 @@ BPlusTree::SplitResult BPlusTree::insertInternal(int page_id, const std::string&
             if (internal->needsSplit()) {
                 SplitResult result = splitInternalNode(internal);
                 file_manager->writeNode(internal);  // Write updated left node
-                delete internal;
+                // Don't delete internal - FileManager owns it
                 return result;
             } else {
                 // No split needed, just write back
                 file_manager->writeNode(internal);
-                delete internal;
+                // Don't delete internal - FileManager owns it
                 return SplitResult();
             }
         } else {
             // No split in child, nothing to do
-            delete internal;
+            // Don't delete internal - FileManager owns it
             return SplitResult();
         }
     }
@@ -216,14 +216,14 @@ BPlusTree::SplitResult BPlusTree::splitLeafNode(LeafNode* left_node) {
     
     // Update leaf chain pointers
     right_node->next_leaf = left_node->next_leaf;
-    file_manager->writeNode(right_node);  // Write right node to get its page_id
+    file_manager->writeNode(right_node);  // Write right node to get its page_id (FileManager takes ownership)
     left_node->next_leaf = right_node->page_id;
     
     // The split key is the first key of the right node
     std::string split_key = right_node->entries[0].getKey();
     int right_page_id = right_node->page_id;
     
-    delete right_node;
+    // Don't delete right_node - FileManager owns it now
     
     return SplitResult(split_key, right_page_id);
 }
@@ -246,11 +246,11 @@ BPlusTree::SplitResult BPlusTree::splitInternalNode(InternalNode* left_node) {
     left_node->keys.erase(left_node->keys.begin() + mid, left_node->keys.end());
     left_node->children.erase(left_node->children.begin() + mid + 1, left_node->children.end());
     
-    // Write right node to get its page_id
+    // Write right node to get its page_id (FileManager takes ownership)
     file_manager->writeNode(right_node);
     int right_page_id = right_node->page_id;
     
-    delete right_node;
+    // Don't delete right_node - FileManager owns it now
     
     return SplitResult(split_key, right_page_id);
 }
