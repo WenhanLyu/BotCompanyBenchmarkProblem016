@@ -1,0 +1,30 @@
+# CMake build artifacts (required)
+CMakeFiles/
+CMakeCache.txt
+
+# CMake additional files
+cmake_install.cmake
+Makefile
+
+# Build output
+code
+*.o
+*.a
+
+# Data files (B+ tree database files)
+data.bpt
+*.bpt
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
