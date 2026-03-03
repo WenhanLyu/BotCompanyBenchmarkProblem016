@@ -28,6 +28,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O2")
 # Define source files (will be populated as implementation progresses)
 set(SOURCES
     main.cpp
+    node.cpp
+    file_manager.cpp
 )
 
 # Create executable named "code" in project root
