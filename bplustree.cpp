@@ -28,6 +28,15 @@ BPlusTree::~BPlusTree() {
 // ============================================================================
 
 void BPlusTree::insert(const std::string& key, int value) {
+    // Validate key length
+    if (key.length() > MAX_KEY_SIZE) {
+        // Key is too long, truncate or reject
+        // For safety, we'll truncate to MAX_KEY_SIZE
+        std::string truncated_key = key.substr(0, MAX_KEY_SIZE);
+        insert(truncated_key, value);
+        return;
+    }
+    
     int root_page_id = file_manager->getRootPageId();
     
     if (root_page_id == -1) {
@@ -138,6 +147,11 @@ int BPlusTree::findLeaf(const std::string& key) {
     while (true) {
         Node* node = file_manager->readNode(current_page_id);
         
+        if (!node) {
+            // Failed to read node
+            return -1;
+        }
+        
         if (node->is_leaf) {
             int leaf_page_id = node->page_id;
             // Don't delete node - FileManager owns it
@@ -152,6 +166,13 @@ int BPlusTree::findLeaf(const std::string& key) {
         }
         
         int child_index = internal->findChildIndex(key);
+        
+        // Bounds check on children array access
+        if (child_index < 0 || child_index >= (int)internal->children.size()) {
+            // Invalid child index, corrupted node
+            return -1;
+        }
+        
         current_page_id = internal->children[child_index];
         // Don't delete internal - FileManager owns it
     }
@@ -160,9 +181,19 @@ int BPlusTree::findLeaf(const std::string& key) {
 BPlusTree::SplitResult BPlusTree::insertInternal(int page_id, const std::string& key, int value) {
     Node* node = file_manager->readNode(page_id);
     
+    if (!node) {
+        // Failed to read node
+        return SplitResult();
+    }
+    
     if (node->is_leaf) {
         // Leaf node - insert the value
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        if (!leaf) {
+            // Cast failed - corrupted node
+            return SplitResult();
+        }
+        
         leaf->insertEntry(key, value);
         
         // Check if we need to split
@@ -180,7 +211,19 @@ BPlusTree::SplitResult BPlusTree::insertInternal(int page_id, const std::string&
     } else {
         // Internal node - find the appropriate child
         InternalNode* internal = dynamic_cast<InternalNode*>(node);
+        if (!internal) {
+            // Cast failed - corrupted node
+            return SplitResult();
+        }
+        
         int child_index = internal->findChildIndex(key);
+        
+        // Bounds check on children array access
+        if (child_index < 0 || child_index >= (int)internal->children.size()) {
+            // Invalid child index, corrupted node
+            return SplitResult();
+        }
+        
         int child_page_id = internal->children[child_index];
         
         // Recursively insert into child
@@ -211,8 +254,18 @@ BPlusTree::SplitResult BPlusTree::insertInternal(int page_id, const std::string&
 }
 
 BPlusTree::SplitResult BPlusTree::splitLeafNode(LeafNode* left_node) {
+    if (!left_node) {
+        // Invalid node pointer
+        return SplitResult();
+    }
+    
     // Create new right node
     LeafNode* right_node = left_node->split();
+    
+    if (!right_node || right_node->entries.empty()) {
+        // Split failed or produced invalid node
+        return SplitResult();
+    }
     
     // Update leaf chain pointers
     right_node->next_leaf = left_node->next_leaf;
@@ -229,13 +282,30 @@ BPlusTree::SplitResult BPlusTree::splitLeafNode(LeafNode* left_node) {
 }
 
 BPlusTree::SplitResult BPlusTree::splitInternalNode(InternalNode* left_node) {
+    if (!left_node || left_node->keys.empty()) {
+        // Invalid node pointer or empty node
+        return SplitResult();
+    }
+    
     // Split the internal node
     InternalNode* right_node = new InternalNode();
     
     int mid = left_node->keys.size() / 2;
     
+    // Bounds check to ensure mid is valid
+    if (mid < 0 || mid >= (int)left_node->keys.size()) {
+        delete right_node;
+        return SplitResult();
+    }
+    
     // The middle key moves up to the parent
     std::string split_key = left_node->keys[mid];
+    
+    // Ensure we have enough children for the split
+    if ((int)left_node->children.size() < mid + 2) {
+        delete right_node;
+        return SplitResult();
+    }
     
     // Move keys and children to the right node
     // Right node gets keys [mid+1, end) and children [mid+1, end]

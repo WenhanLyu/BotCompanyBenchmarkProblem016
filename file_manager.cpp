@@ -47,16 +47,53 @@ void FileManager::close() {
 
 void FileManager::readHeader() {
     file.seekg(0, std::ios::beg);
+    if (!file.good()) {
+        throw std::runtime_error("Failed to seek to beginning of file for header read");
+    }
+    
     file.read(reinterpret_cast<char*>(&header.magic_number), sizeof(int));
+    if (!file.good()) {
+        throw std::runtime_error("Failed to read magic number from file header");
+    }
+    
+    // Validate magic number to detect corrupted files
+    if (header.magic_number != 0x42505442) {
+        throw std::runtime_error("Invalid magic number: file may be corrupted or not a valid B+ tree database");
+    }
+    
     file.read(reinterpret_cast<char*>(&header.next_page_id), sizeof(int));
     file.read(reinterpret_cast<char*>(&header.root_page_id), sizeof(int));
     file.read(reinterpret_cast<char*>(&header.num_free_pages), sizeof(int));
+    
+    if (!file.good()) {
+        throw std::runtime_error("Failed to read file header");
+    }
+    
+    // Validate header values to prevent corruption issues
+    if (header.next_page_id < 1) {
+        header.next_page_id = 1;  // Fix corrupted next_page_id
+    }
+    
+    if (header.root_page_id < -1) {
+        header.root_page_id = -1;  // Fix corrupted root_page_id
+    }
+    
+    if (header.num_free_pages < 0 || header.num_free_pages > 100000) {
+        // Unreasonable number of free pages, reset to safe state
+        header.num_free_pages = 0;
+        free_pages.clear();
+        return;
+    }
     
     // Read free pages list
     free_pages.clear();
     for (int i = 0; i < header.num_free_pages; i++) {
         int page_id;
         file.read(reinterpret_cast<char*>(&page_id), sizeof(int));
+        if (!file.good()) {
+            // File read error, truncate free pages list at this point
+            break;
+        }
         free_pages.push_back(page_id);
     }
     
@@ -65,6 +102,9 @@ void FileManager::readHeader() {
 
 void FileManager::writeHeader() {
     file.seekp(0, std::ios::beg);
+    if (!file.good()) {
+        throw std::runtime_error("Failed to seek to beginning of file for header write");
+    }
     
     // Update header
     header.next_page_id = next_page_id;
@@ -72,16 +112,30 @@ void FileManager::writeHeader() {
     
     // Write header fields
     file.write(reinterpret_cast<const char*>(&header.magic_number), sizeof(int));
+    if (!file.good()) {
+        throw std::runtime_error("Failed to write magic number: disk may be full or file write error");
+    }
+    
     file.write(reinterpret_cast<const char*>(&header.next_page_id), sizeof(int));
     file.write(reinterpret_cast<const char*>(&header.root_page_id), sizeof(int));
     file.write(reinterpret_cast<const char*>(&header.num_free_pages), sizeof(int));
     
+    if (!file.good()) {
+        throw std::runtime_error("Failed to write header fields: disk may be full or file write error");
+    }
+    
     // Write free pages list
     for (int page_id : free_pages) {
         file.write(reinterpret_cast<const char*>(&page_id), sizeof(int));
+        if (!file.good()) {
+            throw std::runtime_error("Failed to write free pages list: disk may be full or file write error");
+        }
     }
     
     file.flush();
+    if (!file.good()) {
+        throw std::runtime_error("Failed to flush header: disk may be full or file write error");
+    }
 }
 
 int FileManager::allocatePage() {
@@ -134,6 +188,11 @@ Node* FileManager::readNode(int page_id) {
 }
 
 Node* FileManager::readNodeFromDisk(int page_id) {
+    // Validate page_id
+    if (page_id < 0) {
+        throw std::runtime_error("Invalid page_id: cannot read negative page ID");
+    }
+    
     // Calculate file offset (header size + page_id * PAGE_SIZE)
     // Header size: 4 ints + max free pages list
     int header_size = PAGE_SIZE;  // Reserve first page for header
@@ -142,7 +201,19 @@ Node* FileManager::readNodeFromDisk(int page_id) {
     // Read page from file
     char buffer[PAGE_SIZE];
     file.seekg(offset, std::ios::beg);
+    if (!file.good()) {
+        throw std::runtime_error("Failed to seek to page for reading");
+    }
+    
     file.read(buffer, PAGE_SIZE);
+    if (!file.good()) {
+        // Check if we hit EOF or other read error
+        if (file.eof()) {
+            throw std::runtime_error("Unexpected EOF while reading node: file may be corrupted");
+        } else {
+            throw std::runtime_error("Failed to read node from disk");
+        }
+    }
     
     // Determine node type
     char node_type = buffer[0];
@@ -151,9 +222,12 @@ Node* FileManager::readNodeFromDisk(int page_id) {
     if (node_type == 0) {
         // Internal node
         node = new InternalNode();
-    } else {
+    } else if (node_type == 1) {
         // Leaf node
         node = new LeafNode();
+    } else {
+        // Invalid node type - corrupted data
+        throw std::runtime_error("Invalid node type in file: data may be corrupted");
     }
     
     node->page_id = page_id;
@@ -186,6 +260,16 @@ void FileManager::writeNode(Node* node) {
 }
 
 void FileManager::writeNodeToDisk(Node* node) {
+    // Validate node pointer
+    if (!node) {
+        throw std::runtime_error("Cannot write null node to disk");
+    }
+    
+    // Validate page_id
+    if (node->page_id < 0) {
+        throw std::runtime_error("Cannot write node with invalid page_id to disk");
+    }
+    
     // Serialize node to buffer
     char buffer[PAGE_SIZE];
     memset(buffer, 0, PAGE_SIZE);  // Clear buffer
@@ -201,7 +285,14 @@ void FileManager::writeNodeToDisk(Node* node) {
     
     // Write page to file
     file.seekp(offset, std::ios::beg);
+    if (!file.good()) {
+        throw std::runtime_error("Failed to seek to page for writing");
+    }
+    
     file.write(buffer, PAGE_SIZE);
+    if (!file.good()) {
+        throw std::runtime_error("Failed to write node to disk: disk may be full");
+    }
 }
 
 void FileManager::setRootPageId(int page_id) {

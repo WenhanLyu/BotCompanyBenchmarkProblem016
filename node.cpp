@@ -112,12 +112,35 @@ int InternalNode::deserialize(const char* buffer) {
     memcpy(&num_keys, buffer + offset, sizeof(int));
     offset += sizeof(int);
     
+    // Validate num_keys to prevent malicious/corrupted data
+    if (num_keys < 0 || num_keys > 1000) {
+        // Unreasonable number of keys (more than we could fit in a page)
+        keys.clear();
+        children.clear();
+        return offset;
+    }
+    
     // Read keys
     keys.clear();
     for (int i = 0; i < num_keys; i++) {
+        // Check if we have enough space left in buffer
+        if (offset + sizeof(int) > PAGE_SIZE) {
+            break;  // Corrupted data, stop reading
+        }
+        
         int key_len;
         memcpy(&key_len, buffer + offset, sizeof(int));
         offset += sizeof(int);
+        
+        // Validate key_len
+        if (key_len < 0 || key_len > MAX_KEY_SIZE) {
+            break;  // Invalid key length, stop reading
+        }
+        
+        // Check if we have enough space for the key
+        if (offset + key_len > PAGE_SIZE) {
+            break;  // Not enough space, corrupted data
+        }
         
         char key_buf[MAX_KEY_SIZE + 1];
         memcpy(key_buf, buffer + offset, key_len);
@@ -129,7 +152,13 @@ int InternalNode::deserialize(const char* buffer) {
     
     // Read children page IDs
     children.clear();
-    for (int i = 0; i <= num_keys; i++) {
+    int expected_children = keys.size() + 1;  // Use actual keys read, not num_keys
+    for (int i = 0; i < expected_children; i++) {
+        // Check if we have enough space
+        if (offset + sizeof(int) > PAGE_SIZE) {
+            break;  // Corrupted data, stop reading
+        }
+        
         int child;
         memcpy(&child, buffer + offset, sizeof(int));
         offset += sizeof(int);
@@ -256,6 +285,13 @@ int LeafNode::deserialize(const char* buffer) {
     // Skip node type
     offset++;
     
+    // Check if we have enough space for next_leaf and num_entries
+    if (offset + 2 * sizeof(int) > PAGE_SIZE) {
+        entries.clear();
+        next_leaf = -1;
+        return offset;
+    }
+    
     // Read next_leaf
     memcpy(&next_leaf, buffer + offset, sizeof(int));
     offset += sizeof(int);
@@ -265,26 +301,65 @@ int LeafNode::deserialize(const char* buffer) {
     memcpy(&num_entries, buffer + offset, sizeof(int));
     offset += sizeof(int);
     
+    // Validate num_entries to prevent malicious/corrupted data
+    if (num_entries < 0 || num_entries > 1000) {
+        // Unreasonable number of entries
+        entries.clear();
+        return offset;
+    }
+    
     // Read each entry
     entries.clear();
     for (int i = 0; i < num_entries; i++) {
         LeafEntry entry;
         
+        // Check if we have enough space for key_len
+        if (offset + sizeof(int) > PAGE_SIZE) {
+            break;  // Corrupted data, stop reading
+        }
+        
         // Read key
         int key_len;
         memcpy(&key_len, buffer + offset, sizeof(int));
         offset += sizeof(int);
+        
+        // Validate key_len
+        if (key_len < 0 || key_len > MAX_KEY_SIZE) {
+            break;  // Invalid key length, stop reading
+        }
+        
+        // Check if we have enough space for the key
+        if (offset + key_len > PAGE_SIZE) {
+            break;  // Not enough space, corrupted data
+        }
+        
         memcpy(entry.key, buffer + offset, key_len);
         entry.key[key_len] = '\0';
         offset += key_len;
+        
+        // Check if we have enough space for num_values
+        if (offset + sizeof(int) > PAGE_SIZE) {
+            break;  // Corrupted data, stop reading
+        }
         
         // Read number of values
         int num_values;
         memcpy(&num_values, buffer + offset, sizeof(int));
         offset += sizeof(int);
         
+        // Validate num_values
+        if (num_values < 0 || num_values > 10000) {
+            // Unreasonable number of values
+            break;
+        }
+        
         // Read values
         for (int j = 0; j < num_values; j++) {
+            // Check if we have enough space for the value
+            if (offset + sizeof(int) > PAGE_SIZE) {
+                break;  // Not enough space, stop reading values
+            }
+            
             int value;
             memcpy(&value, buffer + offset, sizeof(int));
             offset += sizeof(int);
