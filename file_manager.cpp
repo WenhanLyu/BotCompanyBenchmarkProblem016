@@ -112,12 +112,14 @@ Node* FileManager::readNode(int page_id) {
     auto it = cache_map.find(page_id);
     if (it != cache_map.end()) {
         // Cache hit - move to front (most recently used) and return direct pointer
+        cache_hits++;
         auto list_it = it->second;
         cache_list.splice(cache_list.begin(), cache_list, list_it);
         return list_it->node;
     }
     
     // Cache miss - read from disk
+    cache_misses++;
     Node* node = readNodeFromDisk(page_id);
     
     // Add to cache (FileManager owns this node)
@@ -228,6 +230,9 @@ void FileManager::evictLRU() {
     
     // Remove from cache list
     cache_list.pop_back();
+    
+    // Track eviction
+    cache_evictions++;
 }
 
 void FileManager::markDirty(int page_id) {
@@ -262,4 +267,18 @@ void FileManager::clearCache() {
     // Clear the cache structures
     cache_list.clear();
     cache_map.clear();
+}
+
+void FileManager::printCacheStats() const {
+    size_t total_accesses = cache_hits + cache_misses;
+    double hit_rate = total_accesses > 0 ? (100.0 * cache_hits / total_accesses) : 0.0;
+    
+    fprintf(stderr, "=== Cache Statistics ===\n");
+    fprintf(stderr, "Cache hits: %zu\n", cache_hits);
+    fprintf(stderr, "Cache misses: %zu\n", cache_misses);
+    fprintf(stderr, "Total accesses: %zu\n", total_accesses);
+    fprintf(stderr, "Hit rate: %.2f%%\n", hit_rate);
+    fprintf(stderr, "Cache evictions: %zu\n", cache_evictions);
+    fprintf(stderr, "Current cache size: %zu / %zu\n", cache_list.size(), MAX_CACHE_SIZE);
+    fprintf(stderr, "=======================\n");
 }

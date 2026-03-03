@@ -64,6 +64,9 @@ public:
     
     // Flush all changes to disk
     void flush();
+    
+    // Print cache statistics (for debugging/testing)
+    void printCacheStats() const { file_manager->printCacheStats(); }
 };
 
 #endif // BPLUSTREE_H

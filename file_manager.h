@@ -48,6 +48,11 @@ private:
     
     static constexpr size_t MAX_CACHE_SIZE = 800;  // Cache up to 800 nodes (~3.2 MB)
     
+    // Cache statistics
+    mutable size_t cache_hits = 0;
+    mutable size_t cache_misses = 0;
+    mutable size_t cache_evictions = 0;
+    
     // Read header from file
     void readHeader();
     
@@ -99,6 +104,16 @@ public:
     
     // Clear the cache (writes dirty nodes first)
     void clearCache();
+    
+    // Get cache statistics
+    void getCacheStats(size_t& hits, size_t& misses, size_t& evictions) const {
+        hits = cache_hits;
+        misses = cache_misses;
+        evictions = cache_evictions;
+    }
+    
+    // Print cache statistics
+    void printCacheStats() const;
 };
 
 #endif // FILE_MANAGER_H
