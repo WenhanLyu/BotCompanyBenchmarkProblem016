@@ -30,6 +30,7 @@ set(SOURCES
     main.cpp
     node.cpp
     file_manager.cpp
+    bplustree.cpp
 )
 
 # Create executable named "code" in project root
