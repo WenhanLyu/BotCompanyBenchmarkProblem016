@@ -28,3 +28,7 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Agent workspace files
+workspace/
+docs/
