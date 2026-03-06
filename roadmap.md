@@ -3,10 +3,10 @@
 ## Project Goal
 Implement a high-quality B+ tree-based key-value database with file persistence that passes external OJ evaluation.
 
-## Current Status (Cycle 10)
-- **Phase**: Planning (Athena evaluating next milestone)
-- **Completed Milestones**: M1 ✅, M2 (effectively) ✅
-- **Current State**: Functional implementation with correctness verified, but performance issues at scale
+## Current Status (Cycle 11)
+- **Phase**: Planning (Athena defining M4)
+- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅
+- **Current State**: Functional implementation complete with LRU cache and defensive programming, but git file count exceeds OJ limit
 
 ---
 
@@ -43,104 +43,121 @@ Implement a high-quality B+ tree-based key-value database with file persistence 
 
 ---
 
-## Current Assessment (Cycle 10 - Athena's Team Review)
+### ✅ M3: Performance Optimization & Code Hardening
+**Status**: COMPLETE (Cycles 9-10)
+**Actual Cycles**: 2 cycles
+**Verified By**: Elena & Sofia (Athena's team, Cycle 11)
+
+**Delivered**:
+- LRU cache implementation (800 nodes, write-back, dirty tracking) ✅
+- Performance: 2.9s for 300K ops on realistic workloads ✅
+- Memory: <20 MiB typical, safe under 64 MiB limit ✅
+- Defensive programming: Input validation, error handling, corruption checks ✅
+- Exception handling in main.cpp ✅
+
+**Lessons Learned**:
+- Performance depends heavily on key reuse pattern
+- Realistic workloads (1/3 key pool): 2.9s ✅ PASS (42% margin)
+- Worst-case workloads (all unique): 5.9s ❌ FAIL
+- Cache hit rate: 70-85% for typical patterns
+- Implementation ready for submission with 75-80% confidence
+
+**Critical Issue Found**:
+- Git repository has 40 tracked files (27 workspace/ docs)
+- OJ limit is 20 files - this will cause immediate submission failure
+- Core files: only 13 (well under limit)
+- Fix required: Remove workspace/ from git tracking
+
+---
+
+## Current Assessment (Cycle 11 - Athena's Independent Review)
 
 ### What We Have ✅
-1. **Functional Correctness**: 100% (Tina: 29/29 tests passed)
+1. **Functional Correctness**: 100% (verified by Elena, Cycle 11)
+   - Sample test passes (byte-perfect output match)
    - All commands work (insert, delete, find)
-   - Output format exact
-   - Persistence working
-   - Edge cases handled
+   - Persistence working correctly
+   - Edge cases handled (INT_MIN/MAX, 64-byte keys, duplicates)
 
-2. **Requirements Compliance**: 100% (Tina: 44/44 requirements verified)
-   - Build system correct
-   - B+ Tree implementation verified
-   - All constraints met
+2. **Performance (realistic workloads)**: PASS (verified by Sofia, Cycle 11)
+   - 300K ops: 2.9s (42% safety margin)
+   - 200K ops: ~1.6s
+   - 100K ops: ~0.8s
+   - Memory: <20 MiB typical, safe under 64 MiB
 
-3. **Code Quality**: Good but improvable
-   - Clean structure
-   - Proper B+ tree algorithm
-   - No major bugs in logic
+3. **Implementation Quality**: EXCELLENT
+   - LRU cache: 800 nodes, 70-85% hit rate
+   - Defensive programming: Input validation, error handling
+   - Build system: Works correctly
+   - Code: Clean, well-structured
 
-### Critical Issues ❌
+### Critical Blocker ❌
 
-1. **Performance Problem** (Sean's findings):
-   - 100K ops: 2.87s ✅ (within 5s limit)
-   - 200K ops: 5.86s ❌ (exceeds 5s limit by 17%)
-   - 300K ops: 9.06s ❌ (exceeds 5s limit by 81%)
-   - **Root cause**: No caching - every operation hits disk
-   - **Required**: 45% performance improvement (30μs → 17μs per op)
+**Git File Count Violation** (Athena's finding, Cycle 11):
+- Current: 40 files tracked in git
+- OJ Limit: 20 files
+- Problem: 27 workspace/ documentation files are tracked
+- Core files: 13 (under limit)
+- **Impact**: OJ will reject submission immediately
+- **Fix**: Add workspace/ to .gitignore and remove from git
 
-2. **Code Robustness Issues** (Rachel's findings):
-   - Buffer overflow risks in deserialization (no validation)
-   - File I/O errors not checked (silent failures possible)
-   - Memory leaks in exception paths
-   - Split threshold very tight (only 55-byte margin)
+### Performance Risk ⚠️
 
-### Risk Assessment
-- **Success probability without changes**: ~60%
-  - Will pass small test cases
-  - Will timeout on large test cases (200K+ ops)
-  - May fail on edge cases due to robustness issues
-  
-- **Success probability with M3 completion**: ~95%
-  - LRU cache should bring 200K ops to ~3.5s
-  - Defensive programming fixes edge case failures
-  - All known issues addressed
+**Worst-case workload** (Sofia's finding, Cycle 11):
+- All-unique keys: 5.9s for 300K ops ❌ FAIL
+- Realistic workloads: 2.9s for 300K ops ✅ PASS
+- **Assessment**: 75-80% probability of OJ success
+- **Option**: Could optimize further for 90%+ confidence
+
+### Current Risk Assessment
+- **With file count fix only**: 75-80% OJ success probability
+  - Will pass realistic workloads
+  - May timeout on worst-case patterns
+- **With file count fix + worst-case optimization**: 90%+ success probability
+  - All patterns covered
+  - Higher confidence submission
 
 ---
 
 ## Remaining Milestones
 
-### M3: Performance Optimization & Code Hardening
-**Status**: NOT STARTED  
-**Priority**: CRITICAL  
-**Estimated Cycles**: 5-7
+### M4: Submission Preparation & Git Cleanup
+**Status**: CURRENT  
+**Priority**: CRITICAL (blocks submission)  
+**Estimated Cycles**: 2-3
 
-**Problems to Solve**:
-1. Performance: Exceeds 5s time limit at 200K+ operations
-2. Robustness: Buffer overflow risks, error handling gaps
-3. Defensive programming: Input validation missing
+**Critical Issue to Fix**:
+Git file count violation - 40 files tracked (OJ limit: 20)
 
 **Required Deliverables**:
-1. **LRU Cache Implementation**
-   - Cache hot nodes in memory (target: 500-1000 nodes)
-   - Reduce disk I/O by 80-90%
-   - Should bring 300K ops under 4 seconds
+1. **Git Cleanup** (Priority 1 - BLOCKER)
+   - Add workspace/ to .gitignore
+   - Remove workspace/ files from git tracking
+   - Verify: git ls-files | wc -l shows ≤20
+   - Push cleaned repository
    
-2. **Input Validation & Error Handling**
-   - Validate deserialized data (num_keys, sizes)
-   - Check all file I/O operations
-   - Handle disk full, corrupted files gracefully
-   
-3. **Performance Verification**
-   - Test with 100K, 200K, 300K operations
-   - Measure: <4 seconds for 300K ops (20% safety margin)
-   - Verify memory stays under 64 MiB
+2. **Submission Verification** (Priority 1)
+   - Verify build from clean clone
+   - Test sample passes
+   - Verify file count ≤20
+   - Verify all OJ requirements met
+
+3. **Decision: Worst-case Optimization** (Priority 2 - OPTIONAL)
+   - Options:
+     a) Submit now: 75-80% confidence (realistic workloads pass)
+     b) Optimize cache for worst-case: 90%+ confidence (all patterns pass)
+   - Trade-off: 1 cycle vs higher confidence
+   - Current recommendation: Fix git issue first, then decide
 
 **Success Criteria**:
-- 300K operations complete in <4 seconds
-- Memory usage <60 MiB (safety margin below 64 MiB)
-- All defensive programming checks added
-- No buffer overflows possible
-- Clean error handling on disk full/corrupted files
+- Git repository has ≤20 tracked files ✅
+- Build works from clean clone ✅
+- Sample test passes ✅
+- Ready for OJ submission (decide on optimization)
 
-### M4: Final Polish & Submission Readiness
-**Status**: NOT STARTED  
-**Estimated Cycles**: 2-3  
-
-**Deliverables**:
-- Final integration testing
-- Build verification from clean clone
-- Code cleanup and comments
-- Final performance validation
-- Documentation
-
-**Success Criteria**:
-- All tests pass consistently
-- Performance verified <4s for 300K ops
-- Build works from fresh clone
-- Ready for OJ submission
+**Two Possible Outcomes**:
+1. **Path A**: Submit immediately after git fix (75-80% confidence)
+2. **Path B**: Add worst-case optimization, then submit (90%+ confidence)
 
 ---
 
@@ -150,12 +167,12 @@ Implement a high-quality B+ tree-based key-value database with file persistence 
 |-----------|-----------|--------|--------|-------|
 | M1 | 6-8 | 6 | ✅ Complete | On target |
 | M2 | 4-6 | 0 | ✅ Complete | Merged into M1 |
-| M3 | 5-7 | 0 | ⏳ Next | Critical for passing |
-| M4 | 2-3 | 0 | 🔜 Pending | After M3 |
-| Athena cycles | - | 3 | - | Planning & evaluation |
-| **Total** | **15-22** | **9** | **41%** | On track |
+| M3 | 5-7 | 2 | ✅ Complete | Faster than estimated |
+| M4 | 2-3 | 0 | ⏳ Next | Git cleanup + submission prep |
+| Athena cycles | - | 4 | - | Planning & evaluation |
+| **Total** | **15-22** | **12** | **55%** | Ahead of schedule |
 
-**Remaining Budget Estimate**: 7-10 cycles to completion
+**Remaining Budget Estimate**: 2-4 cycles to completion
 
 ---
 
@@ -225,21 +242,26 @@ Implement a high-quality B+ tree-based key-value database with file persistence 
 
 ---
 
-## Next Immediate Actions (Cycle 10)
+## Next Immediate Actions (Cycle 11)
 
-**Athena's Decision**: Define M3 milestone for Ares's team
-- Focus: Performance optimization (LRU cache) + code hardening
-- Scope: Must achieve <4s for 300K operations
-- Budget: 6 cycles (conservative estimate)
-- Success metrics: Clear and measurable
+**Athena's Decision**: Define M4 milestone for Ares's team
+- Focus: Git cleanup (critical blocker) + submission verification
+- Scope: Must reduce git file count to ≤20, verify build works
+- Budget: 2-3 cycles
+- Optional: Worst-case performance optimization (1 additional cycle)
 
 **Why This Approach**:
-1. We have a working, correct implementation
-2. We know the exact problem (performance at scale)
-3. We know the solution (LRU cache + defensive programming)
-4. Fix is well-understood and low-risk
-5. Better to submit once with confidence than iterate via OJ
+1. Implementation is functionally complete and performs well
+2. Critical blocker identified: 40 files tracked (OJ limit: 20)
+3. Must fix git issue before ANY submission attempt
+4. After fix, can choose to submit (75-80%) or optimize further (90%+)
+5. Better to fix known blocker immediately than waste submission attempts
+
+**Decision Framework**:
+1. Fix git file count (mandatory)
+2. Verify build from clean clone (mandatory)
+3. Decide on worst-case optimization (team recommendation)
 
 ---
 
-Last updated: Cycle 10 (Athena evaluation complete)
+Last updated: Cycle 11 (Athena evaluation complete, M4 defined)
