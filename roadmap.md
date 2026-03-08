@@ -3,10 +3,10 @@
 ## Project Goal
 Implement a high-quality B+ tree-based key-value database with file persistence that passes external OJ evaluation.
 
-## Current Status (Cycle 11)
-- **Phase**: Planning (Athena defining M4)
-- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅
-- **Current State**: Functional implementation complete with LRU cache and defensive programming, but git file count exceeds OJ limit
+## Current Status (Cycle 243)
+- **Phase**: Planning (Athena investigating OJ failure)
+- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅
+- **Current State**: OJ Submission #4 scored 100/170 - Wrong Answer on SameIndexTestCase and edge cases
 
 ---
 
@@ -117,47 +117,107 @@ Implement a high-quality B+ tree-based key-value database with file persistence 
   - All patterns covered
   - Higher confidence submission
 
+### ✅ M4: Git Cleanup & Submission Preparation
+**Status**: COMPLETE (Cycles 237-242)  
+**Actual Cycles**: 6 cycles  
+**Verified By**: Clara, Kate, Isabella, James (Apollo's team)
+
+**Delivered**:
+- Git cleanup: Reduced from 40 to 13 tracked files ✅
+- .gitignore updated with workspace/ ✅
+- Build verification from clean clone ✅
+- Sample test passing ✅
+- OJ submission ready ✅
+
+**Result**:
+- First submission (OJ #4): Score 100/170 ❌
+- Passed: BasicTestCase, SimpleTestCase, HarderTestCase, DeleteTestCase, SimuTestCase, BigDataCase
+- Failed: SameIndexTestCase-1 & 2, Synthesized test 2, Some interesting test cases 1 & 2
+
+**Lessons Learned**:
+- Implementation has critical bugs with same-index (multiple values) handling
+- Need better edge case testing before submission
+- Performance is good but correctness issues remain
+
+---
+
+## OJ Submission #4 Analysis (Cycle 243)
+
+### Passed Subtasks (10/17 = 100 points)
+- ✅ Subtasks 1-5: Basic and simple cases
+- ✅ Subtask 8: DeleteTestCase
+- ✅ Subtask 9: SimuTestCase
+- ✅ Subtasks 10-11: BigDataCase (300K operations, good performance!)
+- ✅ Subtasks 12, 16-17: Some synthesized/interesting cases
+
+### Failed Subtasks (0/70 points)
+- ❌ Subtask 6: SameIndexTestCase-1 (Testpoint 17: Wrong Answer)
+- ❌ Subtask 7: SameIndexTestCase-2 (Testpoint 21: Wrong Answer)
+- ❌ Subtask 13: Synthesized test 2 (Testpoint 44: Wrong Answer)
+- ❌ Subtask 14: Some interesting test case 1 (Testpoint 45: Wrong Answer)
+- ❌ Subtask 15: Some interesting test case 2 (Testpoint 46: Wrong Answer)
+
+### Pattern Analysis
+**Critical Bug**: "SameIndexTestCase" name strongly suggests bug with handling multiple values for same key
+**Secondary Issues**: Edge cases in synthesized tests
+
+### Observations
+- Performance is EXCELLENT: BigDataCase passes (300K ops within time limits)
+- Delete operations work correctly
+- Basic multi-value handling works (sample test passes)
+- Bug appears in specific same-index patterns
+
 ---
 
 ## Remaining Milestones
 
-### M4: Submission Preparation & Git Cleanup
+### M5: Fix SameIndexTestCase Bug
 **Status**: CURRENT  
-**Priority**: CRITICAL (blocks submission)  
-**Estimated Cycles**: 2-3
+**Priority**: CRITICAL (correctness blocker)  
+**Estimated Cycles**: 3-5
 
-**Critical Issue to Fix**:
-Git file count violation - 40 files tracked (OJ limit: 20)
+**Problem**:
+OJ submission #4 scored 100/170, failing on:
+- SameIndexTestCase-1 & 2: Wrong Answer on testpoints 17, 21
+- Some synthesized/edge cases: Wrong Answer on testpoints 44, 45, 46
+
+**Root Cause Investigation Needed**:
+1. What specific pattern does SameIndexTestCase test?
+2. Is it a multi-value sorting bug, persistence bug, or logic error?
+3. What edge cases are failing in synthesized tests?
 
 **Required Deliverables**:
-1. **Git Cleanup** (Priority 1 - BLOCKER)
-   - Add workspace/ to .gitignore
-   - Remove workspace/ files from git tracking
-   - Verify: git ls-files | wc -l shows ≤20
-   - Push cleaned repository
+1. **Bug Identification** (Priority 1 - CRITICAL)
+   - Create test cases that reproduce SameIndexTestCase failures
+   - Identify exact code location of bug
+   - Understand why basic tests pass but specific patterns fail
    
-2. **Submission Verification** (Priority 1)
-   - Verify build from clean clone
-   - Test sample passes
-   - Verify file count ≤20
-   - Verify all OJ requirements met
-
-3. **Decision: Worst-case Optimization** (Priority 2 - OPTIONAL)
-   - Options:
-     a) Submit now: 75-80% confidence (realistic workloads pass)
-     b) Optimize cache for worst-case: 90%+ confidence (all patterns pass)
-   - Trade-off: 1 cycle vs higher confidence
-   - Current recommendation: Fix git issue first, then decide
+2. **Bug Fix** (Priority 1 - CRITICAL)
+   - Fix the identified bug
+   - Verify fix doesn't break existing passing tests
+   - Test with comprehensive same-index patterns
+   
+3. **Edge Case Fixes** (Priority 2)
+   - Identify failing edge cases in synthesized tests
+   - Fix any additional bugs found
+   
+4. **Regression Testing** (Priority 1)
+   - Verify all previously passing subtasks still pass
+   - Test performance remains good (BigDataCase passed!)
+   - Verify sample test still works
 
 **Success Criteria**:
-- Git repository has ≤20 tracked files ✅
-- Build works from clean clone ✅
-- Sample test passes ✅
-- Ready for OJ submission (decide on optimization)
+- Reproduce OJ failures locally
+- Fix identified bugs
+- All test patterns work correctly
+- No regression in passing tests
+- Ready for OJ submission #5
 
-**Two Possible Outcomes**:
-1. **Path A**: Submit immediately after git fix (75-80% confidence)
-2. **Path B**: Add worst-case optimization, then submit (90%+ confidence)
+**Testing Strategy**:
+- Create same-index stress tests (many values per key)
+- Test persistence with same-index patterns
+- Test delete/re-insert patterns
+- Test edge cases: empty results, boundary values, etc.
 
 ---
 
@@ -242,26 +302,34 @@ Git file count violation - 40 files tracked (OJ limit: 20)
 
 ---
 
-## Next Immediate Actions (Cycle 11)
+## Next Immediate Actions (Cycle 243)
 
-**Athena's Decision**: Define M4 milestone for Ares's team
-- Focus: Git cleanup (critical blocker) + submission verification
-- Scope: Must reduce git file count to ≤20, verify build works
-- Budget: 2-3 cycles
-- Optional: Worst-case performance optimization (1 additional cycle)
+**Athena's Assessment**:
+- OJ submission #4 revealed critical correctness bug (not performance issue)
+- Performance is EXCELLENT (BigDataCase with 300K ops passed!)
+- Bug is in same-index (multi-value) handling logic
+- Need to identify exact failure pattern and fix
+
+**Investigation Plan**:
+1. Hire specialists to reproduce SameIndexTestCase failures locally
+2. Analyze code for multi-value bugs (sorting, persistence, deletion)
+3. Create comprehensive test suite for same-index patterns
+4. Fix bug and verify with stress tests
+5. Submit OJ #5 with confidence
 
 **Why This Approach**:
-1. Implementation is functionally complete and performs well
-2. Critical blocker identified: 40 files tracked (OJ limit: 20)
-3. Must fix git issue before ANY submission attempt
-4. After fix, can choose to submit (75-80%) or optimize further (90%+)
-5. Better to fix known blocker immediately than waste submission attempts
+1. We have 3 submission attempts remaining (4/7 used)
+2. Performance is proven good - focus is correctness
+3. "SameIndexTestCase" name gives strong hint about bug category
+4. Better to fix locally than waste more OJ attempts
+5. Need to understand exact failure before fixing
 
-**Decision Framework**:
-1. Fix git file count (mandatory)
-2. Verify build from clean clone (mandatory)
-3. Decide on worst-case optimization (team recommendation)
+**Key Questions to Answer**:
+- Does the bug happen with persistence across runs?
+- Is there a sorting issue with multi-value output?
+- Are we handling value deletion correctly for same-index entries?
+- What specific same-index pattern triggers the bug?
 
 ---
 
-Last updated: Cycle 11 (Athena evaluation complete, M4 defined)
+Last updated: Cycle 243 (Athena analyzing OJ submission #4 feedback)
