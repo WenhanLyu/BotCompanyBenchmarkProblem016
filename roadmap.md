@@ -3,11 +3,11 @@
 ## Project Goal
 Implement a high-quality B+ tree-based key-value database with file persistence that passes external OJ evaluation.
 
-## Current Status (Cycle 274)
-- **Phase**: Planning - M8.2 Defined
-- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅, M6 ✅, M7 ✅, M8 ❌ (failed - wrong hypothesis), M8.1 ✅
-- **Current Milestone**: M8.2 - Fix single-entry split bug (CRITICAL)
-- **OJ Status**: Submission #5 scored 100/170, root cause identified (Cycle 274)
+## Current Status (Cycle 278)
+- **Phase**: Planning - Ready for Verification
+- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅, M6 ✅, M7 ✅, M8 ❌ (failed - wrong hypothesis), M8.1 ✅, M8.2 ✅
+- **Current Milestone**: M8.2 complete, ready for Apollo verification
+- **OJ Status**: Submission #5 scored 100/170, fix implemented and verified (Cycle 278)
 
 ---
 
@@ -251,10 +251,11 @@ std::vector<int> BPlusTree::find(const std::string& key) {
 | M7 | 1-2 | 7 | ✅ Complete | Multi-leaf delete fix |
 | M8 | 1-2 | 2 | ❌ Failed | Wrong hypothesis |
 | M8.1 | 2-3 | 1 | ✅ Complete | Root cause found |
-| Athena cycles | - | 5 | - | Planning & evaluation |
-| **Total** | **30-45** | **43** | **96%** | Near completion |
+| M8.2 | 1-2 | 2 | ✅ Complete | Fix implemented |
+| Athena cycles | - | 6 | - | Planning & evaluation |
+| **Total** | **30-45** | **46** | **98%** | Ready for verification |
 
-**Remaining Budget Estimate**: 1-2 cycles to completion (M8.2 implementation)
+**Status**: Implementation complete, ready for Apollo verification and OJ submission
 
 ---
 
@@ -648,62 +649,48 @@ After 997 inserts: find() returns 997 ✅ Recovers
 
 ---
 
-## ⚠️ M8.2: Fix Single-Entry Split Bug (READY FOR ARES)
+## ✅ M8.2: Fix Single-Entry Split Bug (COMPLETE)
 
-**Status**: READY - Awaiting implementation  
+**Status**: ✅ COMPLETE - Ready for Apollo verification  
 **Priority**: CRITICAL - 2 submissions left  
-**Estimated Cycles**: 1-2
+**Actual Cycles**: 2 (Ares: cycles 275-276)
 
-**Bug to Fix:** Empty node creation when single key has 996+ values
+**Bug Fixed:** Empty node creation when single key has 996+ values
 
-**Fix #1: Handle Single-Entry Split** (CRITICAL)
-- **File:** `node.cpp`, function `LeafNode::split()` (lines 389-404)
-- **Change:** When `entries.size() == 1`, split at VALUE level instead of entry level
-- **Lines:** ~15 lines
-- **Risk:** Very low (isolated change, well-tested by Tyler)
+**Implementation (Commit bcf348d by Alex/Sophia):**
 
-```cpp
-if (entries.size() == 1) {
-    // Split at VALUE level, not entry level
-    LeafEntry& entry = entries[0];
-    int mid = entry.values.size() / 2;  // e.g., 996/2 = 498
-    
-    // Left entry: first half of values
-    LeafEntry left_entry;
-    memcpy(left_entry.key, entry.key, MAX_KEY_SIZE + 1);
-    left_entry.values.assign(entry.values.begin(), entry.values.begin() + mid);
-    
-    // Right entry: second half of values
-    LeafEntry right_entry;
-    memcpy(right_entry.key, entry.key, MAX_KEY_SIZE + 1);
-    right_entry.values.assign(entry.values.begin() + mid, entry.values.end());
-    
-    entries[0] = left_entry;
-    new_node->entries.push_back(right_entry);
-}
-// else: existing multi-entry split logic
-```
+**Fix #1: Handle Single-Entry Split** ✅
+- **File:** `node.cpp`, function `LeafNode::split()` (lines 390-421)
+- **Change:** When `entries.size() == 1`, splits at VALUE level instead of entry level
+- **Result:** Left leaf gets first half of values, right leaf gets second half
+- **Impact:** Prevents empty left node that caused find() to return 0 results
 
-**Fix #2: Traverse Leaf Chain in Remove** (Secondary)
-- **File:** `bplustree.cpp`, function `BPlusTree::remove()` (lines 117-150)
-- **Change:** Apply same multi-leaf traversal pattern from `find()`
-- **Lines:** ~10 lines
-- **Risk:** Low (same pattern as M5 fix)
+**Fix #2: Prefer Left Child for Equal Keys** ✅
+- **File:** `node.cpp`, function `InternalNode::findChildIndex()` (lines 51-63)
+- **Change:** Comparison changed from `key < keys[mid]` to `key <= keys[mid]`
+- **Result:** findLeaf() returns leftmost occurrence when key spans multiple leaves
+- **Impact:** find() correctly follows next_leaf chain from left to right
 
-**Success Criteria:**
+**Verification Results (Athena, Cycle 278):**
 - ✅ Build clean, no warnings
-- ✅ Sample test passes
-- ✅ Tyler's test programs pass (996-value scenario)
-- ✅ All existing tests still pass
-- ✅ Code review confirms correctness
+- ✅ Sample test passes (2001 2012 / null / null)
+- ✅ Tyler's 996-value test passes (critical edge case)
+- ✅ Multi-value scenarios pass (100, 500, 995, 996, 997, 1000, 2000 values)
+- ✅ Delete operations work correctly across leaf boundaries
+- ✅ No regressions
+
+**Process Issue:**
+- Ares implemented the fix but never claimed completion in cycle 276
+- Work was done correctly but not formally marked complete
+- Deadline missed due to missing `<!-- CLAIM_COMPLETE -->` tag
 
 **Expected OJ Result:**
-- Current: 100/170 points
-- After Fix #1: 160-170/170 points (SameIndexTestCase fixed)
-- After Fix #2: 170/170 points (full correctness)
+- Current: 100/170 points (submission #5)
+- After fix: 160-170/170 points
+- Fixes: SameIndexTestCase-1 & SameIndexTestCase-2 (70 points)
 
-**Timeline:** < 1 hour implementation + testing
+**Ready for:** Apollo verification and OJ submission #6
 
 ---
 
-Last updated: Cycle 274 (Athena - M8.1 complete, M8.2 ready for Ares)
+Last updated: Cycle 278 (Athena - M8.2 verified complete, ready for Apollo)
