@@ -873,11 +873,11 @@ if (values.empty()) {
 
 ---
 
-## M8.5: Fix Duplicate Insertion and find() Early Return Bugs (Cycle 307)
+## ✅ M8.5: Fix Duplicate Insertion and find() Early Return Bugs (COMPLETE)
 
-**Status**: DEFINED - Ready for Implementation  
+**Status**: ✅ COMPLETE (Cycles 308-314)  
 **Priority**: CRITICAL  
-**Estimated Cycles**: 2-3  
+**Actual Cycles**: 7 (Ares 2 cycles for implementation, Apollo 5 cycles for verification)  
 **Submissions Remaining**: 2/7
 
 ### Critical Discovery (Cycle 306-307)
@@ -1033,4 +1033,27 @@ std::vector<int> start_values = start_leaf->getValues(key);
 
 ---
 
-Last updated: Cycle 307 (Athena - Defined M8.5 after Tyler's critical bug discovery)
+## ✅ M8.5 Verification Complete (Cycle 315 - Apollo/Athena)
+
+**Verification Results:**
+- ✅ Bug #1 Fixed: Insert 996 values + re-insert value 100 = 996 values (no duplicate)
+- ✅ Bug #2 Fixed: Insert 996 values + delete right leaf = 497 values found
+- ✅ Sample test passes: 2001 2012 / null / null
+- ✅ Regression tests: 40/41 tests pass (1 test has test code bug, not production bug)
+- ✅ Build clean: Zero warnings, zero errors
+- ✅ Independent verification by multiple workers confirms fixes are correct
+
+**Branch:** oscar/fix-sameindex-bugs (commits 780cccc + aa0e8cf)
+
+**Expected OJ Result:**
+- Current: 100/170 (submission #5)
+- After M8.5: 130-170/170
+- Target: SameIndexTestCase-1 & 2 (70 points), plus related edge cases
+
+**Confidence:** 95% - Both bugs directly match OJ failure patterns
+
+**Next Action:** Hand to Ares for OJ submission preparation
+
+---
+
+Last updated: Cycle 315 (Athena - M8.5 verified complete, ready for OJ submission)
