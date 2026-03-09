@@ -16,6 +16,12 @@ private:
     // Returns the page_id of the leaf node
     int findLeaf(const std::string& key);
     
+    // Helper: Find the rightmost leaf in a subtree
+    int findRightmostLeaf(int page_id);
+    
+    // Helper: Find the leftmost leaf in a subtree
+    int findLeftmostLeaf(int page_id);
+    
     // Helper: Insert into a leaf node and handle splits if necessary
     // Returns the split key and new right page_id if split occurred
     // Otherwise returns empty string and -1

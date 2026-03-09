@@ -337,15 +337,25 @@ BPlusTree::SplitResult BPlusTree::splitLeafNode(LeafNode* left_node) {
         return SplitResult();
     }
     
+    std::string left_key = left_node->entries.empty() ? "?" : left_node->entries[0].getKey();
+    std::string right_key = right_node->entries.empty() ? "?" : right_node->entries[0].getKey();
+    std::cerr << "[SPLIT LEAF] " << left_key << "(" << left_node->page_id << ") -> " 
+              << right_key << "(new) | old_next=" << left_node->next_leaf << std::endl;
+    
     // Update leaf chain pointers (both next and prev)
     right_node->next_leaf = left_node->next_leaf;
     right_node->prev_leaf = left_node->page_id;
     file_manager->writeNode(right_node);  // Write right node to get its page_id (FileManager takes ownership)
     
+    std::cerr << "[SPLIT LEAF] right_node created with page_id=" << right_node->page_id 
+              << " next=" << right_node->next_leaf << " prev=" << right_node->prev_leaf << std::endl;
+    
     // Update the next node's prev_leaf pointer if it exists
     if (right_node->next_leaf != -1) {
         LeafNode* next_node = dynamic_cast<LeafNode*>(file_manager->readNode(right_node->next_leaf));
         if (next_node) {
+            std::cerr << "[SPLIT LEAF] Updating next node " << right_node->next_leaf 
+                      << " prev_leaf to " << right_node->page_id << std::endl;
             next_node->prev_leaf = right_node->page_id;
             file_manager->writeNode(next_node);
         }
@@ -362,7 +372,60 @@ BPlusTree::SplitResult BPlusTree::splitLeafNode(LeafNode* left_node) {
     return SplitResult(split_key, right_page_id);
 }
 
+// Helper: Find the rightmost leaf in a subtree rooted at page_id
+int BPlusTree::findRightmostLeaf(int page_id) {
+    if (page_id == -1) {
+        return -1;
+    }
+    
+    Node* node = file_manager->readNode(page_id);
+    if (!node) {
+        return -1;
+    }
+    
+    if (node->is_leaf) {
+        int leaf_page_id = node->page_id;
+        return leaf_page_id;
+    }
+    
+    // Internal node - traverse to rightmost child
+    InternalNode* internal = static_cast<InternalNode*>(node);
+    if (internal->children.empty()) {
+        return -1;
+    }
+    
+    int rightmost_child = internal->children.back();
+    return findRightmostLeaf(rightmost_child);
+}
+
+// Helper: Find the leftmost leaf in a subtree rooted at page_id
+int BPlusTree::findLeftmostLeaf(int page_id) {
+    if (page_id == -1) {
+        return -1;
+    }
+    
+    Node* node = file_manager->readNode(page_id);
+    if (!node) {
+        return -1;
+    }
+    
+    if (node->is_leaf) {
+        int leaf_page_id = node->page_id;
+        return leaf_page_id;
+    }
+    
+    // Internal node - traverse to leftmost child
+    InternalNode* internal = static_cast<InternalNode*>(node);
+    if (internal->children.empty()) {
+        return -1;
+    }
+    
+    int leftmost_child = internal->children.front();
+    return findLeftmostLeaf(leftmost_child);
+}
+
 BPlusTree::SplitResult BPlusTree::splitInternalNode(InternalNode* left_node) {
+    std::cerr << "[SPLIT INTERNAL] called" << std::endl;
     if (!left_node || left_node->keys.empty()) {
         // Invalid node pointer or empty node
         return SplitResult();
@@ -400,6 +463,35 @@ BPlusTree::SplitResult BPlusTree::splitInternalNode(InternalNode* left_node) {
     // Write right node to get its page_id (FileManager takes ownership)
     file_manager->writeNode(right_node);
     int right_page_id = right_node->page_id;
+    
+    // CRITICAL FIX: Maintain leaf chain after internal node split
+    // Find the rightmost leaf in the left subtree and leftmost leaf in the right subtree
+    // and link them together to prevent breaking the leaf chain
+    int rightmost_left_page = findRightmostLeaf(left_node->children.back());
+    int leftmost_right_page = findLeftmostLeaf(right_node->children.front());
+    
+    if (rightmost_left_page != -1 && leftmost_right_page != -1) {
+        // Read both leaves
+        Node* rightmost_node = file_manager->readNode(rightmost_left_page);
+        Node* leftmost_node = file_manager->readNode(leftmost_right_page);
+        
+        if (rightmost_node && rightmost_node->is_leaf && 
+            leftmost_node && leftmost_node->is_leaf) {
+            LeafNode* rightmost_leaf = static_cast<LeafNode*>(rightmost_node);
+            LeafNode* leftmost_leaf = static_cast<LeafNode*>(leftmost_node);
+            
+            std::cerr << "[SPLIT INTERNAL] Linking leaves: " << rightmost_leaf->page_id 
+                      << " -> " << leftmost_leaf->page_id << std::endl;
+            
+            // Link them together
+            rightmost_leaf->next_leaf = leftmost_leaf->page_id;
+            leftmost_leaf->prev_leaf = rightmost_leaf->page_id;
+            
+            // Write both leaves back to persist the links
+            file_manager->writeNode(rightmost_leaf);
+            file_manager->writeNode(leftmost_leaf);
+        }
+    }
     
     // Don't delete right_node - FileManager owns it now
     
