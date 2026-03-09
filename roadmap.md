@@ -873,4 +873,164 @@ if (values.empty()) {
 
 ---
 
-Last updated: Cycle 299 (Athena - Defined M8.4 after analyzing Ares failure)
+## M8.5: Fix Duplicate Insertion and find() Early Return Bugs (Cycle 307)
+
+**Status**: DEFINED - Ready for Implementation  
+**Priority**: CRITICAL  
+**Estimated Cycles**: 2-3  
+**Submissions Remaining**: 2/7
+
+### Critical Discovery (Cycle 306-307)
+
+Tyler's independent code audit found TWO CRITICAL bugs in current master (commit 56c12c4) that explain all OJ failures:
+
+### Bug #1: Duplicate Insertion After Value-Level Split
+**Location**: `bplustree.cpp`, lines 31-68, function `insert()`  
+**Severity**: CRITICAL - Breaks duplicate prevention (core requirement)
+
+**The Problem**:
+```cpp
+void BPlusTree::insert(const std::string& key, int value) {
+    // ...
+    int leaf_page_id = findLeaf(key);  // Returns ONE leaf only
+    SplitResult result = insertInternal(leaf_page_id, key, value);
+    // ❌ NEVER checks if value exists in OTHER leaves!
+}
+```
+
+**What Happens**:
+1. Insert 996 values for key "A" → triggers value-level split
+   - Left leaf: values [1..498]
+   - Right leaf: values [499..996]
+2. Try to insert value 100 (exists in left leaf)
+3. `findLeaf("A")` returns right leaf
+4. Right leaf doesn't have 100 locally, so it inserts
+5. **DUPLICATE**: Value 100 now in BOTH left and right leaves!
+
+**Test Evidence**: Tyler's test shows inserting existing value 100 after 996-value split returns 997 values (should be 996). The duplicate was created.
+
+**Why This Breaks SameIndexTestCase**:
+- Test inserts 996+ values → split occurs
+- Test re-inserts some existing values
+- Find returns duplicates → Wrong Answer (2ms execution time matches pattern)
+
+### Bug #2: find() Returns Empty When Starting Leaf Empty
+**Location**: `bplustree.cpp`, lines 97-98, function `find()`  
+**Severity**: CRITICAL - Basic find+delete operations broken
+
+**The Problem**:
+```cpp
+std::vector<int> start_values = start_leaf->getValues(key);
+if (start_values.empty()) {
+    return all_values;  // ❌ Returns BEFORE scanning backward/forward!
+}
+```
+
+**What Happens**:
+1. Insert 996 values for key "A" → split into left [1..498] and right [499..996]
+2. Delete all values from right leaf (right leaf now empty)
+3. `findLeaf("A")` returns right leaf
+4. start_values.empty() is TRUE
+5. **BUG**: Returns empty vector, missing all 498 values in left leaf!
+
+**Why This Breaks SameIndexTestCase**:
+- Test does delete operations followed by find
+- find() returns wrong results → Wrong Answer
+
+### Required Fixes
+
+**Fix #1: Update insert() to Check Entire Leaf Chain**
+```cpp
+void BPlusTree::insert(const std::string& key, int value) {
+    // ... existing validation ...
+    
+    int leaf_page_id = findLeaf(key);
+    if (leaf_page_id == -1) {
+        // Create root
+        return;
+    }
+    
+    // NEW: Check if value exists ANYWHERE in leaf chain
+    Node* start_node = file_manager->readNode(leaf_page_id);
+    LeafNode* start_leaf = dynamic_cast<LeafNode*>(start_node);
+    
+    // Scan backward
+    int prev_id = start_leaf->prev_leaf;
+    while (prev_id != -1) {
+        Node* node = file_manager->readNode(prev_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        if (!leaf) break;
+        
+        std::vector<int> values = leaf->getValues(key);
+        for (int v : values) {
+            if (v == value) return;  // Already exists, don't insert
+        }
+        prev_id = leaf->prev_leaf;
+    }
+    
+    // Check starting leaf
+    std::vector<int> start_values = start_leaf->getValues(key);
+    for (int v : start_values) {
+        if (v == value) return;  // Already exists
+    }
+    
+    // Scan forward
+    int next_id = start_leaf->next_leaf;
+    while (next_id != -1) {
+        Node* node = file_manager->readNode(next_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        if (!leaf) break;
+        
+        std::vector<int> values = leaf->getValues(key);
+        for (int v : values) {
+            if (v == value) return;  // Already exists
+        }
+        next_id = leaf->next_leaf;
+    }
+    
+    // Value doesn't exist anywhere, safe to insert
+    SplitResult result = insertInternal(leaf_page_id, key, value);
+    // ...
+}
+```
+
+**Fix #2: Remove Early Return in find()**
+```cpp
+std::vector<int> start_values = start_leaf->getValues(key);
+// ❌ DELETE THESE TWO LINES:
+// if (start_values.empty()) {
+//     return all_values;
+// }
+
+// Continue with backward/forward scanning regardless of start_values
+```
+
+### Success Criteria
+1. ✅ insert() scans entire leaf chain before inserting (no duplicates)
+2. ✅ find() doesn't early return on empty start_values
+3. ✅ Tyler's duplicate test passes (996 values + re-insert 100 = still 996)
+4. ✅ Delete+find test passes (delete from right, find returns left values)
+5. ✅ Sample test passes (no regression)
+6. ✅ All existing tests pass (no regression)
+7. ✅ Build clean, no warnings
+
+### Expected OJ Result
+- Current: 100/170 (submission #5)
+- After M8.5: 160-170/170 (fixes SameIndexTestCase + other failures)
+- Target: Full score or near-full score
+
+### Why High Confidence (95%)
+1. ✅ Tyler provided reproducible test cases for both bugs
+2. ✅ Bugs explain EXACT pattern of OJ failures (fast, Wrong Answer, SameIndexTestCase)
+3. ✅ Fixes are straightforward (proven patterns from find/remove)
+4. ✅ No other teams found these bugs → they're the missing piece
+5. ✅ Both bugs introduced by our value-level split fixes
+
+### Why This Explains OJ Pattern
+- **OJ #4**: 100/170 (no multi-leaf support)
+- **OJ #5**: 100/170 (multi-leaf find/remove added, BUT insert duplicates + find early return still broken)
+- **Expected OJ #6**: 160-170/170 (all critical bugs fixed)
+
+---
+
+Last updated: Cycle 307 (Athena - Defined M8.5 after Tyler's critical bug discovery)
