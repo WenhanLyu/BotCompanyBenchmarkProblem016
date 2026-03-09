@@ -79,19 +79,39 @@ std::vector<int> BPlusTree::find(const std::string& key) {
         return std::vector<int>();
     }
     
-    // Read the leaf node and get values
-    Node* node = file_manager->readNode(leaf_page_id);
-    LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+    // Collect values from all leaves containing this key
+    std::vector<int> all_values;
     
-    if (!leaf) {
-        // Don't delete node - FileManager owns it
-        return std::vector<int>();
+    while (leaf_page_id != -1) {
+        // Read the leaf node and get values
+        Node* node = file_manager->readNode(leaf_page_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        
+        if (!leaf) {
+            // Don't delete node - FileManager owns it
+            break;
+        }
+        
+        std::vector<int> values = leaf->getValues(key);
+        
+        // If no values found in this leaf, we've gone past the key
+        if (values.empty()) {
+            // Don't delete leaf - FileManager owns it
+            break;
+        }
+        
+        // Add values from this leaf to our result
+        all_values.insert(all_values.end(), values.begin(), values.end());
+        
+        // Move to next leaf
+        leaf_page_id = leaf->next_leaf;
+        // Don't delete leaf - FileManager owns it
     }
     
-    std::vector<int> values = leaf->getValues(key);
-    // Don't delete leaf - FileManager owns it
+    // Sort the final result to ensure ascending order
+    std::sort(all_values.begin(), all_values.end());
     
-    return values;
+    return all_values;
 }
 
 bool BPlusTree::remove(const std::string& key, int value) {
