@@ -8,8 +8,20 @@ FileManager::FileManager(const std::string& fname) : filename(fname) {
 }
 
 FileManager::~FileManager() {
-    close();
-    clearCache();
+    // Destructor must not throw - wrap calls in try-catch
+    try {
+        close();
+    } catch (const std::exception& e) {
+        // Swallow exception - cannot throw from destructor
+        // Error during close is acceptable in destructor context
+    }
+    
+    try {
+        clearCache();
+    } catch (const std::exception& e) {
+        // Swallow exception - cannot throw from destructor
+        // Cache cleanup failure is acceptable in destructor context
+    }
 }
 
 void FileManager::open() {
