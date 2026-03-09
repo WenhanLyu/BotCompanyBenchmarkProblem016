@@ -73,7 +73,7 @@ private:
     
 public:
     FileManager(const std::string& filename);
-    ~FileManager();
+    ~FileManager() noexcept;
     
     // Initialize or open existing database file
     void open();

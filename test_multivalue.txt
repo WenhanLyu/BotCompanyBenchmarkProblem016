@@ -1,0 +1,12 @@
+11
+insert X 1
+insert X 2
+insert X 3
+insert X 4
+insert X 5
+insert X 6
+insert X 7
+insert X 8
+insert X 9
+insert X 10
+find X

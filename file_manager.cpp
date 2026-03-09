@@ -7,7 +7,7 @@ FileManager::FileManager(const std::string& fname) : filename(fname) {
     next_page_id = 1;
 }
 
-FileManager::~FileManager() {
+FileManager::~FileManager() noexcept {
     // Destructor must not throw - wrap calls in try-catch
     try {
         close();
