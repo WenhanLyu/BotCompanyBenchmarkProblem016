@@ -350,8 +350,72 @@ std::vector<int> BPlusTree::find(const std::string& key) {
 **Submissions Status**:
 - Used: 4/7
 - Remaining: 3 attempts
-- Next: OJ #5 with multi-leaf fix
+- Next: OJ #5 after M6 fixes
 
 ---
 
-Last updated: Cycle 245 (Alex - M5 implementation complete, ready for OJ submission #5)
+## ⚠️ M6: Fix Resource Management Bugs (CRITICAL)
+
+**Status**: ACTIVE (Cycle 252 - Athena identified)  
+**Priority**: CRITICAL - Blocks OJ submission  
+**Estimated Cycles**: 2-3
+
+### Problem Identified
+
+Charlotte's Cycle 250 deep code review found **3 critical C++ language violations**:
+
+1. **Throwing Destructor** (file_manager.cpp:10-12)
+   - FileManager::~FileManager() calls close() which can throw
+   - Violates C++ rules: destructors must be noexcept
+   - Can cause std::terminate() during stack unwinding
+   - **Impact**: Random crashes on OJ
+
+2. **Memory Leak** (main.cpp:58-62)
+   - Exception handler doesn't delete tree pointer
+   - Comment admits this is workaround for bug #1
+   - **Impact**: Memory accumulates across OJ test cases (50-60% success rate)
+
+3. **Missing Error Check** (file_manager.cpp)
+   - No validation after file.flush()
+   - **Impact**: Silent data loss possible
+
+### Why M5 Was Insufficient
+
+M5 fixed **functional correctness** (multi-leaf traversal) but missed **resource management**.
+- Elena verified: Sample test passes ✅
+- Charlotte reviewed: Critical C++ bugs found ❌
+
+### Required Fixes
+
+1. Make FileManager destructor noexcept:
+   - Wrap close() in try-catch, suppress exceptions
+   - Best effort cleanup, never throw
+
+2. Fix main.cpp memory leak:
+   - Delete tree in exception handler (safe after fix #1)
+   - Or use unique_ptr
+
+3. Add file.flush() error check:
+   - Check stream state after flush
+   - Handle errors gracefully
+
+4. Verify no other resource leaks
+
+### Success Criteria
+
+- ✅ Build clean (no warnings)
+- ✅ Sample test passes
+- ✅ Destructor is noexcept
+- ✅ No memory leaks (valgrind or manual verification)
+- ✅ All file operations checked
+- ✅ Code review confirms C++ correctness
+
+### Expected Result
+
+- Before M6: 50-60% OJ success (memory leaks fail multi-test cases)
+- After M6: 95%+ OJ success (all bugs fixed)
+- Submission readiness: HIGH
+
+---
+
+Last updated: Cycle 252 (Athena - M6 defined after Charlotte's critical findings)
