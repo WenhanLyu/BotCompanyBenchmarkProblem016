@@ -3,11 +3,11 @@
 ## Project Goal
 Implement a high-quality B+ tree-based key-value database with file persistence that passes external OJ evaluation.
 
-## Current Status (Cycle 244)
-- **Phase**: Planning (Athena → Ares handoff for M5)
-- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅
-- **Current State**: Bug identified in find() function - ready to fix
-- **OJ Status**: Submission #4 scored 100/170, bug confirmed, fix ready
+## Current Status (Cycle 245)
+- **Phase**: Complete - Ready for OJ Submission #5
+- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅
+- **Current State**: Multi-leaf traversal bug fixed and tested
+- **OJ Status**: Submission #4 scored 100/170, bug fixed (Alex), ready for submission #5
 
 ---
 
@@ -172,10 +172,10 @@ Implement a high-quality B+ tree-based key-value database with file persistence 
 
 ## Remaining Milestones
 
-### M5: Fix Multi-Leaf Key Bug
-**Status**: READY FOR IMPLEMENTATION (Investigation complete - Cycle 244)
+### ✅ M5: Fix Multi-Leaf Key Bug
+**Status**: COMPLETE (Cycle 245 - Alex)
 **Priority**: CRITICAL (correctness blocker)  
-**Estimated Cycles**: 2-3
+**Actual Cycles**: 1
 
 **Bug Identified** (✅ Complete):
 - **File**: bplustree.cpp, lines 68-95
@@ -209,26 +209,32 @@ std::vector<int> BPlusTree::find(const std::string& key) {
 }
 ```
 
-**Required Tasks**:
-1. Implement the fix in bplustree.cpp (lines 68-95)
-2. Verify with Lucas's minimal_reproducer.txt (expect 1000 values output)
-3. Run sample test (must still pass byte-perfect)
-4. Build and verify executable compiles
-5. Ready for OJ submission #5
+**Implementation Complete** (✅ Alex, Cycle 245):
+1. ✅ Modified find() in bplustree.cpp to follow next_leaf chain
+2. ✅ Added std::sort() to ensure ascending order (spec requirement)
+3. ✅ Tested with 1000 values - returns all values correctly sorted
+4. ✅ Sample test passes byte-perfect (2001 2012 output)
+5. ✅ Build: clean compilation with no warnings
+6. ✅ Edge cases tested: empty results, boundary values, persistence
 
-**Success Criteria**:
-- ✅ Minimal reproducer: `./code < minimal_reproducer.txt | wc -w` → 1000
-- ✅ Sample test: exact output match
-- ✅ Build: clean compilation
-- ✅ Ready for OJ submission
+**Test Results**:
+- ✅ 1000-value test: Returns all 1000 values in ascending order (1 2 3 ... 1000)
+- ✅ Sample test: Exact match (2001 2012 / null / null)
+- ✅ Multiple keys: Correctly sorts values per key
+- ✅ Persistence: Values stay sorted across runs
+- ✅ Boundary values: INT_MIN and INT_MAX handled correctly
+- ✅ Empty results: Returns "null" as expected
+
+**Commit**: d96a3c7 - "[Alex] Fix multi-leaf traversal in find() - follow next_leaf chain to collect all values for a key"
 
 **Expected OJ Result**:
 - Current: 100/170 points
-- After fix: 170/170 points (full score)
-- Lost points: SameIndexTestCase-1 & 2 (70 points) - directly addressed by this fix
+- After fix: 170/170 points (full score expected)
+- Fixed: SameIndexTestCase-1 & 2 (70 points) - directly addressed
 
-**Performance Impact**: Negligible (BigDataCase already passed in OJ #4)
-- Test edge cases: empty results, boundary values, etc.
+**Performance Impact**: Negligible (only reads necessary leaves, BigDataCase already passed in OJ #4)
+
+**Ready for OJ Submission #5**: ✅
 
 ---
 
@@ -239,9 +245,10 @@ std::vector<int> BPlusTree::find(const std::string& key) {
 | M1 | 6-8 | 6 | ✅ Complete | On target |
 | M2 | 4-6 | 0 | ✅ Complete | Merged into M1 |
 | M3 | 5-7 | 2 | ✅ Complete | Faster than estimated |
-| M4 | 2-3 | 0 | ⏳ Next | Git cleanup + submission prep |
+| M4 | 2-3 | 6 | ✅ Complete | Git cleanup + submission prep |
+| M5 | 2-3 | 1 | ✅ Complete | Multi-leaf fix |
 | Athena cycles | - | 4 | - | Planning & evaluation |
-| **Total** | **15-22** | **12** | **55%** | Ahead of schedule |
+| **Total** | **19-30** | **19** | **63%** | On schedule |
 
 **Remaining Budget Estimate**: 2-4 cycles to completion
 
@@ -347,4 +354,4 @@ std::vector<int> BPlusTree::find(const std::string& key) {
 
 ---
 
-Last updated: Cycle 244 (Athena → Ares handoff for M5 implementation)
+Last updated: Cycle 245 (Alex - M5 implementation complete, ready for OJ submission #5)
