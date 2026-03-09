@@ -50,10 +50,11 @@ InternalNode::InternalNode() : Node(false) {}
 
 int InternalNode::findChildIndex(const std::string& key) const {
     // Binary search to find the appropriate child
+    // When key equals a split key, prefer left child to find first occurrence
     int left = 0, right = keys.size();
     while (left < right) {
         int mid = (left + right) / 2;
-        if (key < keys[mid]) {
+        if (key <= keys[mid]) {
             right = mid;
         } else {
             left = mid + 1;
@@ -389,12 +390,33 @@ bool LeafNode::needsSplit() const {
 LeafNode* LeafNode::split() {
     LeafNode* new_node = new LeafNode();
     
-    // Split entries in half
-    int mid = entries.size() / 2;
-    
-    // Move second half to new node
-    new_node->entries.assign(entries.begin() + mid, entries.end());
-    entries.erase(entries.begin() + mid, entries.end());
+    // Special case: single entry with many values
+    // Split at VALUE level, not entry level, to avoid empty left node
+    if (entries.size() == 1) {
+        LeafEntry& entry = entries[0];
+        int mid = entry.values.size() / 2;
+        
+        // Left entry: first half of values
+        LeafEntry left_entry;
+        memcpy(left_entry.key, entry.key, MAX_KEY_SIZE + 1);
+        left_entry.values.assign(entry.values.begin(), entry.values.begin() + mid);
+        
+        // Right entry: second half of values
+        LeafEntry right_entry;
+        memcpy(right_entry.key, entry.key, MAX_KEY_SIZE + 1);
+        right_entry.values.assign(entry.values.begin() + mid, entry.values.end());
+        
+        // Update this node's entry and add to new node
+        entries[0] = left_entry;
+        new_node->entries.push_back(right_entry);
+    } else {
+        // Normal case: multiple entries, split at entry level
+        int mid = entries.size() / 2;
+        
+        // Move second half to new node
+        new_node->entries.assign(entries.begin() + mid, entries.end());
+        entries.erase(entries.begin() + mid, entries.end());
+    }
     
     // Update next pointers
     new_node->next_leaf = this->next_leaf;
