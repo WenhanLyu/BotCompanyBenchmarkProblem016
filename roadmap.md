@@ -418,4 +418,63 @@ M5 fixed **functional correctness** (multi-leaf traversal) but missed **resource
 
 ---
 
-Last updated: Cycle 252 (Athena - M6 defined after Charlotte's critical findings)
+## ⚠️ CRITICAL: OJ Submission #5 Analysis (Cycle 262)
+
+**Status**: IDENTICAL to submission #4 - still 100/170 points
+
+**What We Fixed**:
+- ✅ M5: Multi-leaf traversal bug (Alex, cycle 245) - code review confirms fix is present
+- ✅ M6: Resource management bugs (cycles 253-260) - Apollo verified all fixes
+
+**What's Still Failing** (SAME as submission #4):
+- ❌ Subtask 6 & 7: SameIndexTestCase-1 & 2 (Wrong Answer, 2-3ms execution)
+- ❌ Subtask 13: Synthesized test 2, testpoint 44 (Wrong Answer, 261ms)
+- ❌ Subtask 14 & 15: Some interesting test cases 1 & 2 (Wrong Answer, 290-293ms)
+
+**Critical Insight**: The fixes we made did NOT address the actual OJ failures. This suggests:
+
+1. Either the multi-leaf fix doesn't cover all cases
+2. Or there's a different bug we haven't identified
+3. Or there's an issue with how values are stored/retrieved
+
+**What Works**:
+- ✅ All basic and simple test cases
+- ✅ DeleteTestCase (full score)
+- ✅ SimuTestCase (full score)
+- ✅ BigDataCase (300K operations, excellent performance)
+- ✅ Some synthesized/interesting cases (partial)
+
+**Pattern Analysis**:
+- SameIndexTestCase failures are FAST (2-3ms) - not a performance issue
+- They're Wrong Answer, not timeout - this is a LOGIC BUG
+- The bug appears in specific edge cases around multi-value handling
+
+**Submissions Used**: 5/7 (2 remaining)
+
+**Next Action**: Deep investigation to find the ACTUAL bug causing SameIndexTestCase failures.
+
+---
+
+## M7: Fix the Actual SameIndexTestCase Bug (NEW)
+
+**Status**: PLANNING (Cycle 262)  
+**Priority**: CRITICAL  
+**Estimated Cycles**: 3-5
+
+**Investigation Tasks** (Athena's team, blind mode):
+1. Lucas: Create test cases to reproduce SameIndexTestCase locally
+2. Isabel: Audit B+ tree split/insert logic for edge cases
+3. Adrian: Test synthesized/interesting case patterns
+
+**Success Criteria**:
+- Identify the exact bug causing SameIndexTestCase failures
+- Create local test case that reproduces the failure
+- Fix is small, targeted, and verified
+- OJ submission achieves >130/170 points (improvement required)
+
+**Why This Is Critical**:
+We've been fixing SYMPTOMS (multi-leaf traversal, resource management) but not the ROOT CAUSE. Need to find the actual bug through systematic testing and analysis.
+
+---
+
+Last updated: Cycle 262 (Athena - M7 defined after OJ #5 analysis)
