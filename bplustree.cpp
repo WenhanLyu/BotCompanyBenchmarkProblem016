@@ -94,9 +94,9 @@ std::vector<int> BPlusTree::find(const std::string& key) {
     }
     
     std::vector<int> start_values = start_leaf->getValues(key);
-    if (start_values.empty()) {
-        return all_values;  // Key not found
-    }
+    // BUG FIX #2: Don't return early if start_values is empty!
+    // After deletions or value-level splits, findLeaf() might land on an empty leaf,
+    // but other leaves in the chain might still have values for this key.
     
     // Scan backward to collect from previous leaves
     // CRITICAL: Don't stop just because a leaf has 0 values for our key!
@@ -282,6 +282,56 @@ BPlusTree::SplitResult BPlusTree::insertInternal(int page_id, const std::string&
             return SplitResult();
         }
         
+        // BUG FIX #1: Before inserting, check if value already exists in the entire leaf chain
+        // After value-level splits, the same key exists in multiple leaves.
+        // We must scan backward, current, and forward to prevent duplicates.
+        
+        // Scan backward using prev_leaf
+        int prev_id = leaf->prev_leaf;
+        while (prev_id != -1) {
+            Node* prev_node = file_manager->readNode(prev_id);
+            LeafNode* prev_leaf = dynamic_cast<LeafNode*>(prev_node);
+            if (!prev_leaf) break;
+            
+            std::vector<int> prev_values = prev_leaf->getValues(key);
+            for (int v : prev_values) {
+                if (v == value) {
+                    // Value already exists in a previous leaf - don't insert
+                    return SplitResult();
+                }
+            }
+            
+            prev_id = prev_leaf->prev_leaf;
+        }
+        
+        // Check current leaf
+        std::vector<int> current_values = leaf->getValues(key);
+        for (int v : current_values) {
+            if (v == value) {
+                // Value already exists in current leaf - don't insert
+                return SplitResult();
+            }
+        }
+        
+        // Scan forward using next_leaf
+        int next_id = leaf->next_leaf;
+        while (next_id != -1) {
+            Node* next_node = file_manager->readNode(next_id);
+            LeafNode* next_leaf = dynamic_cast<LeafNode*>(next_node);
+            if (!next_leaf) break;
+            
+            std::vector<int> next_values = next_leaf->getValues(key);
+            for (int v : next_values) {
+                if (v == value) {
+                    // Value already exists in a next leaf - don't insert
+                    return SplitResult();
+                }
+            }
+            
+            next_id = next_leaf->next_leaf;
+        }
+        
+        // Value doesn't exist in any leaf - safe to insert
         leaf->insertEntry(key, value);
         
         // Check if we need to split
