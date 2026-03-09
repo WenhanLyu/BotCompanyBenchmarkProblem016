@@ -14,6 +14,7 @@ code
 # Data files (B+ tree database files)
 data.bpt
 *.bpt
+*.db
 
 # IDE and editor files
 .vscode/
@@ -28,6 +29,32 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Test output files
+*_output.txt
+output_*.txt
+
+# Test source files (debugging/investigation)
+test_*.cpp
+test[0-9]*.cpp
+detailed_debug.cpp
+ultra*.cpp
+minimal*.cpp
+debug_test.cpp
+
+# Test executables (not part of build system)
+test_*
+test[0-9]*
+detailed_debug
+ultra*
+minimal
+debug
+cache_test
+stress_test
+comprehensive_stress_test
+perf_test_*
+gen_perf
+verify_*
 
 # Agent workspace files
 workspace/
