@@ -3,11 +3,11 @@
 ## Project Goal
 Implement a high-quality B+ tree-based key-value database with file persistence that passes external OJ evaluation.
 
-## Current Status (Cycle 245)
-- **Phase**: Complete - Ready for OJ Submission #5
-- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅
-- **Current State**: Multi-leaf traversal bug fixed and tested
-- **OJ Status**: Submission #4 scored 100/170, bug fixed (Alex), ready for submission #5
+## Current Status (Cycle 262)
+- **Phase**: Planning - M7 Defined
+- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅, M6 ✅
+- **Current Milestone**: M7 - Fix multi-leaf delete bug
+- **OJ Status**: Submission #5 scored 100/170 (SAME as #4), bug identified (Adrian), ready for fix
 
 ---
 
@@ -455,26 +455,76 @@ M5 fixed **functional correctness** (multi-leaf traversal) but missed **resource
 
 ---
 
-## M7: Fix the Actual SameIndexTestCase Bug (NEW)
+## ⚠️ M7: Fix Multi-Leaf Delete Bug (ACTIVE)
 
-**Status**: PLANNING (Cycle 262)  
+**Status**: DEFINED - Ready for Implementation (Cycle 262)  
 **Priority**: CRITICAL  
-**Estimated Cycles**: 3-5
+**Estimated Cycles**: 1-2
 
-**Investigation Tasks** (Athena's team, blind mode):
-1. Lucas: Create test cases to reproduce SameIndexTestCase locally
-2. Isabel: Audit B+ tree split/insert logic for edge cases
-3. Adrian: Test synthesized/interesting case patterns
+**Bug Identified** (Adrian, Cycle 262): ✅ COMPLETE
+- **File:** `bplustree.cpp`, lines 117-150
+- **Function:** `BPlusTree::remove()`
+- **Issue:** Only searches ONE leaf node when key spans multiple leaves
+- **Root Cause:** Same bug we fixed in `find()` during M5, but we missed `remove()`
 
-**Success Criteria**:
-- Identify the exact bug causing SameIndexTestCase failures
-- Create local test case that reproduces the failure
-- Fix is small, targeted, and verified
-- OJ submission achieves >130/170 points (improvement required)
+**Evidence:**
+```bash
+# Test case: Insert 1000 values for key X, delete value 500
+./code < test_delete_multi_leaf.txt
 
-**Why This Is Critical**:
-We've been fixing SYMPTOMS (multi-leaf traversal, resource management) but not the ROOT CAUSE. Need to find the actual bug through systematic testing and analysis.
+# Expected: 999 values (all except 500)
+# Actual: 1000 values (500 still present - delete failed)
+```
+
+**The Fix:**
+Apply the SAME multi-leaf traversal pattern from `find()` to `remove()`:
+
+```cpp
+bool BPlusTree::remove(const std::string& key, int value) {
+    int leaf_page_id = findLeaf(key);
+    if (leaf_page_id == -1) return false;
+    
+    // Traverse all leaves containing this key
+    while (leaf_page_id != -1) {
+        LeafNode* leaf = readLeaf(leaf_page_id);
+        
+        // Try to delete from this leaf
+        bool removed = leaf->deleteEntry(key, value);
+        if (removed) {
+            file_manager->writeNode(leaf);
+            return true;
+        }
+        
+        // Continue to next leaf if key still exists
+        if (leaf->hasKey(key)) {
+            leaf_page_id = leaf->next_leaf;
+        } else {
+            break;
+        }
+    }
+    return false;
+}
+```
+
+**Impact:**
+- OJ Failures: SameIndexTestCase-1 & 2 (70 points) + potentially others
+- Fix Complexity: Simple (~15 lines)
+- Fix Risk: Low (proven pattern from M5)
+- Expected OJ Result: 100 → 160-170 points
+
+**Why OJ #5 Failed:**
+- We fixed `find()` in M5 but NOT `remove()`
+- Tests can READ multi-leaf keys correctly ✅
+- Tests CANNOT DELETE from multi-leaf keys ❌
+- Result: Same Wrong Answer failures as OJ #4
+
+**Success Criteria:**
+- ✅ Implement multi-leaf traversal in remove()
+- ✅ Test with 1000-value delete scenarios
+- ✅ Verify sample test still passes
+- ✅ Build clean, no warnings
+- ✅ Submit OJ #6, expect >130/170 points
 
 ---
 
-Last updated: Cycle 262 (Athena - M7 defined after OJ #5 analysis)
+Last updated: Cycle 262 (Athena - M7 defined, bug identified by Adrian)
