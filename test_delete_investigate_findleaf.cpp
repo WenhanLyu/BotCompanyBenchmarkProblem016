@@ -34,37 +34,8 @@ int main() {
     // Now let's trace what happens during a delete attempt
     cout << "\n=== Attempting to delete value 0 ===" << endl;
     
-    // Get root page to understand tree structure
-    int root_page = fm.getRootPageId();
-    cout << "Root page ID: " << root_page << endl;
-    
-    Node* root_node = fm.readNode(root_page);
-    if (root_node) {
-        LeafNode* root_leaf = dynamic_cast<LeafNode*>(root_node);
-        InternalNode* root_internal = dynamic_cast<InternalNode*>(root_node);
-        
-        if (root_leaf) {
-            cout << "Root is a LEAF node" << endl;
-            cout << "  Number of entries: " << root_leaf->entries.size() << endl;
-            cout << "  Next leaf: " << root_leaf->next_leaf << endl;
-            cout << "  Prev leaf: " << root_leaf->prev_leaf << endl;
-            
-            // Check if key exists in root leaf
-            vector<int> root_values = root_leaf->getValues("key");
-            cout << "  Values in root leaf for 'key': " << root_values.size() << endl;
-            if (root_values.size() > 0) {
-                cout << "  First value: " << root_values[0] 
-                     << ", Last value: " << root_values[root_values.size()-1] << endl;
-            }
-        } else if (root_internal) {
-            cout << "Root is an INTERNAL node" << endl;
-            cout << "  Number of keys: " << root_internal->keys.size() << endl;
-            cout << "  Number of children: " << root_internal->children.size() << endl;
-            if (root_internal->keys.size() > 0) {
-                cout << "  First key: " << root_internal->keys[0] << endl;
-            }
-        }
-    }
+    // NOTE: Can't access FileManager internals from here
+    // This test just shows the external behavior
     
     // Try the actual delete and see what happens
     bool deleted = tree.remove("key", 0);
