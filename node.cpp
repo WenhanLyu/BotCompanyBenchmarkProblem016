@@ -50,11 +50,11 @@ InternalNode::InternalNode() : Node(false) {}
 
 int InternalNode::findChildIndex(const std::string& key) const {
     // Binary search to find the appropriate child
-    // When key equals a split key, prefer left child to find first occurrence
+    // Standard B+ tree semantics: keys[i] is the first key in children[i+1]
     int left = 0, right = keys.size();
     while (left < right) {
         int mid = (left + right) / 2;
-        if (key <= keys[mid]) {
+        if (key < keys[mid]) {
             right = mid;
         } else {
             left = mid + 1;
@@ -180,7 +180,7 @@ bool InternalNode::needsSplit() const {
 // LeafNode Implementation
 // ============================================================================
 
-LeafNode::LeafNode() : Node(true), next_leaf(-1) {}
+LeafNode::LeafNode() : Node(true), next_leaf(-1), prev_leaf(-1) {}
 
 int LeafNode::findEntry(const std::string& key) const {
     // Binary search for the entry
@@ -251,6 +251,10 @@ int LeafNode::serialize(char* buffer) const {
     memcpy(buffer + offset, &next_leaf, sizeof(int));
     offset += sizeof(int);
     
+    // Write prev_leaf
+    memcpy(buffer + offset, &prev_leaf, sizeof(int));
+    offset += sizeof(int);
+    
     // Write number of entries
     int num_entries = entries.size();
     memcpy(buffer + offset, &num_entries, sizeof(int));
@@ -286,15 +290,20 @@ int LeafNode::deserialize(const char* buffer) {
     // Skip node type
     offset++;
     
-    // Check if we have enough space for next_leaf and num_entries
-    if (offset + 2 * sizeof(int) > PAGE_SIZE) {
+    // Check if we have enough space for next_leaf, prev_leaf, and num_entries
+    if (offset + 3 * sizeof(int) > PAGE_SIZE) {
         entries.clear();
         next_leaf = -1;
+        prev_leaf = -1;
         return offset;
     }
     
     // Read next_leaf
     memcpy(&next_leaf, buffer + offset, sizeof(int));
+    offset += sizeof(int);
+    
+    // Read prev_leaf
+    memcpy(&prev_leaf, buffer + offset, sizeof(int));
     offset += sizeof(int);
     
     // Read number of entries

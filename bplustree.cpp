@@ -79,8 +79,39 @@ std::vector<int> BPlusTree::find(const std::string& key) {
         return std::vector<int>();
     }
     
-    // Collect values from all leaves containing this key
+    // First, scan backward to find the FIRST leaf containing this key
+    // This is necessary because with value-level splits, the same key
+    // can span multiple leaves, and findLeaf() may land in the middle
+    int first_leaf_id = leaf_page_id;
+    while (first_leaf_id != -1) {
+        Node* node = file_manager->readNode(first_leaf_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        
+        if (!leaf || leaf->prev_leaf == -1) {
+            break;
+        }
+        
+        // Check if the previous leaf also contains this key
+        Node* prev_node = file_manager->readNode(leaf->prev_leaf);
+        LeafNode* prev_leaf = dynamic_cast<LeafNode*>(prev_node);
+        
+        if (!prev_leaf) {
+            break;
+        }
+        
+        std::vector<int> prev_values = prev_leaf->getValues(key);
+        if (prev_values.empty()) {
+            // Previous leaf doesn't have this key, so current is the first
+            break;
+        }
+        
+        // Previous leaf has this key, continue scanning backward
+        first_leaf_id = leaf->prev_leaf;
+    }
+    
+    // Now collect values starting from the first leaf, scanning forward
     std::vector<int> all_values;
+    leaf_page_id = first_leaf_id;
     
     while (leaf_page_id != -1) {
         // Read the leaf node and get values
@@ -305,9 +336,20 @@ BPlusTree::SplitResult BPlusTree::splitLeafNode(LeafNode* left_node) {
         return SplitResult();
     }
     
-    // Update leaf chain pointers
+    // Update leaf chain pointers (both next and prev)
     right_node->next_leaf = left_node->next_leaf;
+    right_node->prev_leaf = left_node->page_id;
     file_manager->writeNode(right_node);  // Write right node to get its page_id (FileManager takes ownership)
+    
+    // Update the next node's prev_leaf pointer if it exists
+    if (right_node->next_leaf != -1) {
+        LeafNode* next_node = dynamic_cast<LeafNode*>(file_manager->readNode(right_node->next_leaf));
+        if (next_node) {
+            next_node->prev_leaf = right_node->page_id;
+            file_manager->writeNode(next_node);
+        }
+    }
+    
     left_node->next_leaf = right_node->page_id;
     
     // The split key is the first key of the right node

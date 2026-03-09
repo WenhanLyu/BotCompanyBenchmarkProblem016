@@ -81,6 +81,7 @@ class LeafNode : public Node {
 public:
     std::vector<LeafEntry> entries;
     int next_leaf;  // Page ID of next leaf (-1 if none)
+    int prev_leaf;  // Page ID of previous leaf (-1 if none)
     
     LeafNode();
     
