@@ -356,6 +356,9 @@ void FileManager::flush() {
     
     writeHeader();
     file.flush();
+    if (!file.good()) {
+        throw std::runtime_error("Failed to flush changes to disk: disk may be full or file write error");
+    }
 }
 
 void FileManager::clearCache() {
