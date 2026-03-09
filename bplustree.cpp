@@ -62,6 +62,7 @@ void BPlusTree::insert(const std::string& key, int value) {
         
         file_manager->writeNode(new_root);
         file_manager->setRootPageId(new_root->page_id);
+        
         // Don't delete new_root - FileManager owns it now
     }
 }
@@ -98,17 +99,22 @@ std::vector<int> BPlusTree::find(const std::string& key) {
     }
     
     // Scan backward to collect from previous leaves
+    // CRITICAL: Don't stop just because a leaf has 0 values for our key!
+    // Value-level splits can insert leaves with different keys in the middle of the chain.
+    // We must scan the ENTIRE backward chain to find all occurrences.
     int prev_id = start_leaf->prev_leaf;
     while (prev_id != -1) {
         Node* node = file_manager->readNode(prev_id);
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        if (!leaf) break;
+        if (!leaf || leaf->entries.empty()) break;
         
+        // Collect values if they exist
         std::vector<int> values = leaf->getValues(key);
-        if (values.empty()) break;  // No more leaves with this key
+        if (!values.empty()) {
+            // Prepend values (since we're going backward)
+            all_values.insert(all_values.begin(), values.begin(), values.end());
+        }
         
-        // Prepend values (since we're going backward)
-        all_values.insert(all_values.begin(), values.begin(), values.end());
         prev_id = leaf->prev_leaf;
     }
     
@@ -116,16 +122,21 @@ std::vector<int> BPlusTree::find(const std::string& key) {
     all_values.insert(all_values.end(), start_values.begin(), start_values.end());
     
     // Scan forward to collect from next leaves
+    // CRITICAL: Don't stop just because a leaf has 0 values for our key!
+    // Value-level splits can insert leaves with different keys in the middle of the chain.
+    // We must scan the ENTIRE forward chain to find all occurrences.
     int next_id = start_leaf->next_leaf;
     while (next_id != -1) {
         Node* node = file_manager->readNode(next_id);
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        if (!leaf) break;
+        if (!leaf || leaf->entries.empty()) break;
         
+        // Collect values if they exist
         std::vector<int> values = leaf->getValues(key);
-        if (values.empty()) break;  // No more leaves with this key
+        if (!values.empty()) {
+            all_values.insert(all_values.end(), values.begin(), values.end());
+        }
         
-        all_values.insert(all_values.end(), values.begin(), values.end());
         next_id = leaf->next_leaf;
     }
     
