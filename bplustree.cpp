@@ -160,40 +160,58 @@ bool BPlusTree::remove(const std::string& key, int value) {
         return false;
     }
     
-    // Traverse multiple leaves to find the specific key-value pair
-    // Use the same pattern as find()
-    while (leaf_page_id != -1) {
-        // Read the leaf node
-        Node* node = file_manager->readNode(leaf_page_id);
+    // Get the starting leaf
+    Node* start_node = file_manager->readNode(leaf_page_id);
+    LeafNode* start_leaf = dynamic_cast<LeafNode*>(start_node);
+    if (!start_leaf) {
+        return false;
+    }
+    
+    // Apply the same pattern as find(): scan backward, then forward
+    // CRITICAL: Don't stop just because a leaf has 0 values for our key!
+    // Value-level splits can insert leaves with different keys in the middle of the chain.
+    // We must scan the ENTIRE chain to find all occurrences.
+    
+    // First, try to delete from previous leaves (scan backward)
+    int prev_id = start_leaf->prev_leaf;
+    while (prev_id != -1) {
+        Node* node = file_manager->readNode(prev_id);
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        
-        if (!leaf) {
-            // Don't delete node - FileManager owns it
-            break;
-        }
-        
-        // Check if this leaf contains any entries with the key
-        std::vector<int> values = leaf->getValues(key);
-        
-        // If no values found in this leaf, we've gone past the key
-        if (values.empty()) {
-            // Don't delete leaf - FileManager owns it
-            break;
-        }
+        if (!leaf) break;
         
         // Try to delete the value from this leaf
         bool removed = leaf->deleteEntry(key, value);
-        
         if (removed) {
             // Write the updated leaf back to disk
             file_manager->writeNode(leaf);
-            // Don't delete leaf - FileManager owns it
             return true;
         }
         
-        // Move to next leaf to continue searching
-        leaf_page_id = leaf->next_leaf;
-        // Don't delete leaf - FileManager owns it
+        prev_id = leaf->prev_leaf;
+    }
+    
+    // Try to delete from the starting leaf
+    bool removed = start_leaf->deleteEntry(key, value);
+    if (removed) {
+        file_manager->writeNode(start_leaf);
+        return true;
+    }
+    
+    // Finally, scan forward to find the value in next leaves
+    int next_id = start_leaf->next_leaf;
+    while (next_id != -1) {
+        Node* node = file_manager->readNode(next_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        if (!leaf) break;
+        
+        // Try to delete the value from this leaf
+        removed = leaf->deleteEntry(key, value);
+        if (removed) {
+            file_manager->writeNode(leaf);
+            return true;
+        }
+        
+        next_id = leaf->next_leaf;
     }
     
     return false;
