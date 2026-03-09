@@ -57,8 +57,8 @@ int main() {
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
-        // Don't delete tree on error to avoid throwing from destructor during stack unwinding
-        // This prevents double-exception terminate
+        // Safe to delete tree - destructor is now noexcept after Alex's fix (issue #28)
+        delete tree;
         return 1;
     }
 }
