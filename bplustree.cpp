@@ -106,7 +106,7 @@ std::vector<int> BPlusTree::find(const std::string& key) {
     while (prev_id != -1) {
         Node* node = file_manager->readNode(prev_id);
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        if (!leaf || leaf->entries.empty()) break;
+        if (!leaf) break;
         
         // Collect values if they exist
         std::vector<int> values = leaf->getValues(key);
@@ -129,7 +129,7 @@ std::vector<int> BPlusTree::find(const std::string& key) {
     while (next_id != -1) {
         Node* node = file_manager->readNode(next_id);
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        if (!leaf || leaf->entries.empty()) break;
+        if (!leaf) break;
         
         // Collect values if they exist
         std::vector<int> values = leaf->getValues(key);
