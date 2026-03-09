@@ -3,11 +3,11 @@
 ## Project Goal
 Implement a high-quality B+ tree-based key-value database with file persistence that passes external OJ evaluation.
 
-## Current Status (Cycle 262)
-- **Phase**: Planning - M7 Defined
-- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅, M6 ✅
-- **Current Milestone**: M7 - Fix multi-leaf delete bug
-- **OJ Status**: Submission #5 scored 100/170 (SAME as #4), bug identified (Adrian), ready for fix
+## Current Status (Cycle 269)
+- **Phase**: Planning - M8 Defined
+- **Completed Milestones**: M1 ✅, M2 ✅, M3 ✅, M4 ✅, M5 ✅, M6 ✅, M7 ✅
+- **Current Milestone**: M8 - Fix find() duplicate values bug (CRITICAL)
+- **OJ Status**: Submission #5 scored 100/170 (SAME as #4), NEW bug found (Athena cycle 269)
 
 ---
 
@@ -525,6 +525,74 @@ bool BPlusTree::remove(const std::string& key, int value) {
 - ✅ Build clean, no warnings
 - ✅ Submit OJ #6, expect >130/170 points
 
+**Verification**: Apollo verified M7 complete (Cycle 268)
+- ✅ Multi-leaf traversal pattern applied to remove()
+- ✅ Pattern matches find() exactly
+- ✅ Code structure correct
+- ❌ Did NOT verify actual output correctness with multi-value tests
+
 ---
 
-Last updated: Cycle 262 (Athena - M7 defined, bug identified by Adrian)
+## ⚠️ M8: Fix find() Duplicate Values Bug (CRITICAL - Active)
+
+**Status**: DEFINED - Ready for Investigation (Cycle 269)  
+**Priority**: CRITICAL - Blocks OJ submission  
+**Estimated Cycles**: 2-3
+
+**Bug Identified** (Athena, Cycle 269): ✅ CONFIRMED
+- **File:** `bplustree.cpp`, lines 68-115
+- **Function:** `BPlusTree::find()`
+- **Issue:** Returns duplicate values (3x multiplicity) when querying multi-value keys
+- **Severity:** CRITICAL - Explains all OJ failures (100/170 score)
+
+**Evidence:**
+```bash
+# Simple test: Insert 3 values for key "A"
+insert A 1
+insert A 2
+insert A 3
+find A
+
+# Expected: "1 2 3"
+# Actual: "1 1 1 1 2 2 2 2 3 3 3 3..." (many duplicates)
+
+# Large test with 1000 values: Each value appears 3x instead of 1x
+# Word count: 2000+ words instead of 1000
+```
+
+**Root Cause Hypotheses:**
+1. Multi-leaf traversal continues past leaves containing the key
+2. `getValues()` returns values from wrong entries or multiple times
+3. Caching layer returns stale/duplicate data
+4. Loop termination condition in find() is incorrect
+5. next_leaf chain has cycles or revisits same leaves
+
+**Investigation Required:**
+1. Add debug logging to find() to trace which leaves are visited
+2. Verify getValues() returns correct values for each leaf
+3. Check if loop visits same leaf multiple times
+4. Verify next_leaf chain doesn't have cycles
+5. Test with small cases (3-5 values) to understand duplication pattern
+
+**Expected OJ Impact:**
+- Current: 100/170 (SameIndexTestCase and others fail)
+- After fix: 160-170/170 (should pass all multi-value cases)
+
+**Why This Explains OJ Failures:**
+- SameIndexTestCase tests multiple values for same key ✅
+- Our code returns 3x too many values = Wrong Answer ✅
+- Delete tests also affected (removes from wrong leaves) ✅
+- All failures have 2-3ms execution (not timeout) = logic bug ✅
+
+**Success Criteria:**
+- ✅ Identify exact root cause of duplication
+- ✅ Fix find() to return correct values
+- ✅ Test with 3, 10, 100, 1000 value cases
+- ✅ Verify no duplicates in output
+- ✅ Sample test still passes
+- ✅ Build clean, no warnings
+- ✅ Independent verification before OJ submission
+
+---
+
+Last updated: Cycle 269 (Athena - M8 defined, critical bug found in find())
