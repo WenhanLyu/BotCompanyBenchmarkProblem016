@@ -1,6 +1,7 @@
 #include "bplustree.h"
 #include <stdexcept>
 #include <algorithm>
+#include <iostream>
 
 // ============================================================================
 // Constructor & Destructor
@@ -79,64 +80,53 @@ std::vector<int> BPlusTree::find(const std::string& key) {
         return std::vector<int>();
     }
     
-    // First, scan backward to find the FIRST leaf containing this key
-    // This is necessary because with value-level splits, the same key
-    // can span multiple leaves, and findLeaf() may land in the middle
-    int first_leaf_id = leaf_page_id;
-    while (first_leaf_id != -1) {
-        Node* node = file_manager->readNode(first_leaf_id);
-        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        
-        if (!leaf || leaf->prev_leaf == -1) {
-            break;
-        }
-        
-        // Check if the previous leaf also contains this key
-        Node* prev_node = file_manager->readNode(leaf->prev_leaf);
-        LeafNode* prev_leaf = dynamic_cast<LeafNode*>(prev_node);
-        
-        if (!prev_leaf) {
-            break;
-        }
-        
-        std::vector<int> prev_values = prev_leaf->getValues(key);
-        if (prev_values.empty()) {
-            // Previous leaf doesn't have this key, so current is the first
-            break;
-        }
-        
-        // Previous leaf has this key, continue scanning backward
-        first_leaf_id = leaf->prev_leaf;
+    // Collect values from the current leaf and ALL adjacent leaves containing this key
+    // We need to scan both backward and forward because findLeaf() may land anywhere
+    // in the sequence of leaves containing the key (due to value-level splits)
+    std::vector<int> all_values;
+    
+    // First, collect from the starting leaf
+    Node* start_node = file_manager->readNode(leaf_page_id);
+    LeafNode* start_leaf = dynamic_cast<LeafNode*>(start_node);
+    if (!start_leaf) {
+        return all_values;  // Empty result
     }
     
-    // Now collect values starting from the first leaf, scanning forward
-    std::vector<int> all_values;
-    leaf_page_id = first_leaf_id;
+    std::vector<int> start_values = start_leaf->getValues(key);
+    if (start_values.empty()) {
+        return all_values;  // Key not found
+    }
     
-    while (leaf_page_id != -1) {
-        // Read the leaf node and get values
-        Node* node = file_manager->readNode(leaf_page_id);
+    // Scan backward to collect from previous leaves
+    int prev_id = start_leaf->prev_leaf;
+    while (prev_id != -1) {
+        Node* node = file_manager->readNode(prev_id);
         LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-        
-        if (!leaf) {
-            // Don't delete node - FileManager owns it
-            break;
-        }
+        if (!leaf) break;
         
         std::vector<int> values = leaf->getValues(key);
+        if (values.empty()) break;  // No more leaves with this key
         
-        // If no values found in this leaf, we've gone past the key
-        if (values.empty()) {
-            // Don't delete leaf - FileManager owns it
-            break;
-        }
+        // Prepend values (since we're going backward)
+        all_values.insert(all_values.begin(), values.begin(), values.end());
+        prev_id = leaf->prev_leaf;
+    }
+    
+    // Add values from the starting leaf
+    all_values.insert(all_values.end(), start_values.begin(), start_values.end());
+    
+    // Scan forward to collect from next leaves
+    int next_id = start_leaf->next_leaf;
+    while (next_id != -1) {
+        Node* node = file_manager->readNode(next_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        if (!leaf) break;
         
-        // Add values from this leaf to our result
+        std::vector<int> values = leaf->getValues(key);
+        if (values.empty()) break;  // No more leaves with this key
+        
         all_values.insert(all_values.end(), values.begin(), values.end());
-        
-        // Move to next leaf
-        leaf_page_id = leaf->next_leaf;
-        // Don't delete leaf - FileManager owns it
+        next_id = leaf->next_leaf;
     }
     
     // Sort the final result to ensure ascending order

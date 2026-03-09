@@ -384,7 +384,7 @@ int LeafNode::deserialize(const char* buffer) {
 
 bool LeafNode::needsSplit() const {
     // Estimate serialized size
-    int estimated_size = 1 + sizeof(int) * 2;  // type + next_leaf + num_entries
+    int estimated_size = 1 + sizeof(int) * 3;  // type + next_leaf + prev_leaf + num_entries
     for (const auto& entry : entries) {
         estimated_size += sizeof(int);  // key_len
         estimated_size += strlen(entry.key);
