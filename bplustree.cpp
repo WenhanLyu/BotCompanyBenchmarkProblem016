@@ -128,25 +128,43 @@ bool BPlusTree::remove(const std::string& key, int value) {
         return false;
     }
     
-    // Read the leaf node
-    Node* node = file_manager->readNode(leaf_page_id);
-    LeafNode* leaf = dynamic_cast<LeafNode*>(node);
-    
-    if (!leaf) {
-        // Don't delete node - FileManager owns it
-        return false;
+    // Traverse multiple leaves to find the specific key-value pair
+    // Use the same pattern as find()
+    while (leaf_page_id != -1) {
+        // Read the leaf node
+        Node* node = file_manager->readNode(leaf_page_id);
+        LeafNode* leaf = dynamic_cast<LeafNode*>(node);
+        
+        if (!leaf) {
+            // Don't delete node - FileManager owns it
+            break;
+        }
+        
+        // Check if this leaf contains any entries with the key
+        std::vector<int> values = leaf->getValues(key);
+        
+        // If no values found in this leaf, we've gone past the key
+        if (values.empty()) {
+            // Don't delete leaf - FileManager owns it
+            break;
+        }
+        
+        // Try to delete the value from this leaf
+        bool removed = leaf->deleteEntry(key, value);
+        
+        if (removed) {
+            // Write the updated leaf back to disk
+            file_manager->writeNode(leaf);
+            // Don't delete leaf - FileManager owns it
+            return true;
+        }
+        
+        // Move to next leaf to continue searching
+        leaf_page_id = leaf->next_leaf;
+        // Don't delete leaf - FileManager owns it
     }
     
-    // Try to delete the value
-    bool removed = leaf->deleteEntry(key, value);
-    
-    if (removed) {
-        // Write the updated leaf back to disk
-        file_manager->writeNode(leaf);
-    }
-    
-    // Don't delete leaf - FileManager owns it
-    return removed;
+    return false;
 }
 
 void BPlusTree::flush() {

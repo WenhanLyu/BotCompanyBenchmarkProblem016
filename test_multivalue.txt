@@ -1,12 +1,11 @@
-11
-insert X 1
-insert X 2
-insert X 3
-insert X 4
-insert X 5
-insert X 6
-insert X 7
-insert X 8
-insert X 9
-insert X 10
-find X
+10
+insert test 1
+insert test 2
+insert test 3
+insert test 4
+insert test 5
+insert test 6
+insert test 7
+insert test 8
+insert test 9
+find test
