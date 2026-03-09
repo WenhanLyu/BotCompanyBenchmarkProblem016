@@ -533,66 +533,96 @@ bool BPlusTree::remove(const std::string& key, int value) {
 
 ---
 
-## ⚠️ M8: Fix find() Duplicate Values Bug (CRITICAL - Active)
+## ⚠️ M8: INVESTIGATION FAILED - Hypothesis Was Wrong (Cycle 270-272)
 
-**Status**: DEFINED - Ready for Investigation (Cycle 269)  
-**Priority**: CRITICAL - Blocks OJ submission  
-**Estimated Cycles**: 2-3
+**Status**: FAILED - Milestone based on incorrect hypothesis  
+**Cycles Used**: 2/2 (Ares team, Cycles 270-272)  
+**Result**: No fix - original bug hypothesis was FALSE
 
-**Bug Identified** (Athena, Cycle 269): ✅ CONFIRMED
-- **File:** `bplustree.cpp`, lines 68-115
-- **Function:** `BPlusTree::find()`
-- **Issue:** Returns duplicate values (3x multiplicity) when querying multi-value keys
-- **Severity:** CRITICAL - Explains all OJ failures (100/170 score)
+**What Happened:**
+- **Cycle 270**: Ares scheduled Nina, Leo, Alex to investigate
+- **Cycle 271**: All three workers reported NO BUG EXISTS
+  - Leo: Deep code review - find() is correct, "3x duplication" was test artifact (database not cleaned between runs)
+  - Nina: Comprehensive testing (3-2000 values) - all pass, no duplicates
+  - Alex: Verification - code is correct
+- **Cycle 272**: Ares claimed complete, but OJ failures remain unresolved
 
-**Evidence:**
+**Truth Discovered:**
+The reported "3x duplication bug" was NOT a code bug:
+- Test file was run 3 times on same persistent database.db without cleanup
+- Each run inserted values 1-1000 again → 3000 total values accumulated
+- find() correctly returned ALL values in database (including past runs)
+- Fresh database tests: PERFECT (no duplicates at any scale)
+
+**Evidence Code is Correct:**
 ```bash
-# Simple test: Insert 3 values for key "A"
-insert A 1
-insert A 2
-insert A 3
-find A
+$ rm database.db && ./code < test_multi_leaf_find.txt | wc -w
+1001  # CORRECT: 1000 values + "null"
 
-# Expected: "1 2 3"
-# Actual: "1 1 1 1 2 2 2 2 3 3 3 3..." (many duplicates)
-
-# Large test with 1000 values: Each value appears 3x instead of 1x
-# Word count: 2000+ words instead of 1000
+$ ./code < test_multi_leaf_find.txt | wc -w  # Run again without cleanup
+2001  # 2x (2000 values + "null") - NOT a bug, database persists per spec
 ```
 
-**Root Cause Hypotheses:**
-1. Multi-leaf traversal continues past leaves containing the key
-2. `getValues()` returns values from wrong entries or multiple times
-3. Caching layer returns stale/duplicate data
-4. Loop termination condition in find() is incorrect
-5. next_leaf chain has cycles or revisits same leaves
+**OJ Reality:**
+- Submissions #4 and #5: BOTH score 100/170 (IDENTICAL results)
+- M5 (multi-leaf find fix): ✅ Present in code
+- M6 (resource management): ✅ Present in code
+- M7 (multi-leaf delete fix): ✅ Present in code
+- **Still failing:** SameIndexTestCase (testpoints 17, 21), Synthesized test 2 (testpoint 44), Some interesting cases 1-2 (testpoints 45-46)
 
-**Investigation Required:**
-1. Add debug logging to find() to trace which leaves are visited
-2. Verify getValues() returns correct values for each leaf
-3. Check if loop visits same leaf multiple times
-4. Verify next_leaf chain doesn't have cycles
-5. Test with small cases (3-5 values) to understand duplication pattern
-
-**Expected OJ Impact:**
-- Current: 100/170 (SameIndexTestCase and others fail)
-- After fix: 160-170/170 (should pass all multi-value cases)
-
-**Why This Explains OJ Failures:**
-- SameIndexTestCase tests multiple values for same key ✅
-- Our code returns 3x too many values = Wrong Answer ✅
-- Delete tests also affected (removes from wrong leaves) ✅
-- All failures have 2-3ms execution (not timeout) = logic bug ✅
-
-**Success Criteria:**
-- ✅ Identify exact root cause of duplication
-- ✅ Fix find() to return correct values
-- ✅ Test with 3, 10, 100, 1000 value cases
-- ✅ Verify no duplicates in output
-- ✅ Sample test still passes
-- ✅ Build clean, no warnings
-- ✅ Independent verification before OJ submission
+**Lessons Learned:**
+1. Don't define milestones based on unverified bug reports
+2. Test hypotheses BEFORE assigning work to execution team
+3. False milestones waste cycles and submission attempts
+4. Need better investigation process before claiming "bug found"
 
 ---
 
-Last updated: Cycle 269 (Athena - M8 defined, critical bug found in find())
+## ⚠️ M8.1: Find the ACTUAL Bug (Cycle 273 - NEW)
+
+**Status**: ACTIVE - Re-investigation with blind testing  
+**Priority**: CRITICAL - 2 submissions left  
+**Estimated Cycles**: 3-4
+
+**What We Know:**
+- **Score**: 100/170 (stuck for 2 submissions)
+- **Passing**: Basic tests, Delete, SimuTestCase, BigDataCase (300K ops ✅)
+- **Failing**: SameIndexTestCase-1&2 (Wrong Answer, 2-3ms), Synthesized test 2 (261ms), Interesting cases 1-2 (290-293ms)
+
+**Pattern Analysis:**
+- SameIndexTestCase failures are FAST (2-3ms) → Not performance issue
+- Wrong Answer → Logic bug in specific edge case
+- Name "SameIndexTestCase" → Tests multiple values for same key
+- But our multi-value handling works in all local tests...
+
+**New Investigation Strategy:**
+
+### Phase 1: Output Format Audit (Ryan)
+- Check exact output format (spaces, newlines, "null" format)
+- Verify every edge case output matches spec exactly
+- Look for: extra spaces, wrong case, missing newlines
+
+### Phase 2: Edge Case Generation (Sara)  
+- Create 20+ test cases targeting "same index" patterns
+- Test: duplicate inserts, delete-reinsert, delete all values, boundaries
+- Document any failures with exact input/output
+
+### Phase 3: Logic Deep Dive (Tyler)
+- Code audit of insert/find/delete paths
+- State machine analysis
+- Focus on: split during multi-value insert, delete from split key, re-insert after delete
+- Generate minimal reproducers for any suspicious behavior
+
+**Success Criteria:**
+- Identify actual root cause of OJ failures
+- Create reproducible test case that fails locally
+- Fix verified with independent testing
+- Ready for OJ submission with high confidence
+
+**Risk Management:**
+- Only 2 OJ submissions left - must be certain before submitting
+- If Phase 1-3 find nothing, may need to submit blind and use OJ feedback
+
+---
+
+Last updated: Cycle 273 (Athena - M8 failed, M8.1 investigation started)
