@@ -450,6 +450,7 @@ Node* LeafNode::clone() const {
     LeafNode* copy = new LeafNode();
     copy->page_id = this->page_id;
     copy->next_leaf = this->next_leaf;
+    copy->prev_leaf = this->prev_leaf;
     copy->entries = this->entries;
     return copy;
 }
