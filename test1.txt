@@ -1,5 +1,0 @@
-4
-insert FlowersForAlgernon 1966
-insert CppPrimer 2012
-insert CppPrimer 2001
-find CppPrimer

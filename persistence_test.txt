@@ -1,3 +1,0 @@
-2
-find CppPrimer
-find FlowersForAlgernon

@@ -1,4 +1,0 @@
-3
-insert CppPrimer 2005
-find CppPrimer
-find FlowersForAlgernon
