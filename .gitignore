@@ -59,3 +59,9 @@ verify_*
 # Agent workspace files
 workspace/
 docs/
+workers/
+
+# Temporary documentation
+BUG_FIX_*.md
+SAMPLE_TEST_*.md
+sample_input.txt
