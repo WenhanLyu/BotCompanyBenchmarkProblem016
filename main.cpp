@@ -56,7 +56,7 @@ int main() {
         return 0;
     }
     catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        // std::cerr << "Error: " << e.what() << std::endl;  // Leo: Removed for OJ (issue #78)
         // Safe to delete tree - destructor is now noexcept after Alex's fix (issue #28)
         delete tree;
         return 1;

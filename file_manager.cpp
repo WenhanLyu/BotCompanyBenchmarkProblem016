@@ -375,6 +375,7 @@ void FileManager::clearCache() {
     cache_map.clear();
 }
 
+// WARNING: This function outputs to stderr - do NOT call from main execution path (Leo, issue #78)
 void FileManager::printCacheStats() const {
     size_t total_accesses = cache_hits + cache_misses;
     double hit_rate = total_accesses > 0 ? (100.0 * cache_hits / total_accesses) : 0.0;
